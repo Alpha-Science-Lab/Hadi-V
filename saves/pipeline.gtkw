@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Oct 25 10:25:02 2023
+[*]
+[dumpfile] "/home/mdlab/Desktop/hades-v_internal/build/boot/sim.fst"
+[dumpfile_mtime] "Wed Oct 25 10:14:15 2023"
+[dumpfile_size] 215993
+[savefile] "/home/mdlab/Desktop/hades-v_internal/saves/pipeline.gtkw"
+[timestart] 2030
+[size] 1291 895
+[pos] 629 0
+*-7.000000 2300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.top.
+[treeopen] TOP.top.mcu.
+[treeopen] TOP.top.mcu.cpu.
+[treeopen] TOP.top.mcu.cpu.golden.
+[treeopen] TOP.top.mcu.cpu.golden.decode_stage_module.golden.
+[treeopen] TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.
+[treeopen] TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.
+[treeopen] TOP.top.mcu.cpu.golden.memory_stage_module.
+[treeopen] TOP.top.mcu.cpu.golden.memory_stage_module.golden.
+[treeopen] TOP.top.mcu.cpu.golden.writeback_stage_module.
+[treeopen] TOP.top.mcu.wb_test.
+[treeopen] TOP.top.mcu.wb_uart.
+[sst_width] 331
+[signals_width] 346
+[sst_expanded] 1
+[sst_vpaned_height] 392
+@28
+TOP.top.mcu.cpu.rst
+TOP.top.mcu.cpu.clk
+@200
+-Fetch
+@22
+TOP.top.mcu.cpu.golden.fetch_stage_module.jump_address_backwards_in[31:0]
+@100000028
+TOP.top.mcu.cpu.golden.fetch_stage_module.status_backwards_in[1:0]
+@22
+TOP.top.mcu.cpu.golden.fetch_stage_module.golden.pc[31:0]
+@200
+-Decode
+@100000028
+TOP.top.mcu.cpu.golden.decode_stage_module.status_forwards_in[3:0]
+@22
+TOP.top.mcu.cpu.golden.decode_stage_module.program_counter_in[31:0]
+TOP.top.mcu.cpu.golden.decode_stage_module.instruction_in[31:0]
+@100000028
+TOP.top.mcu.cpu.golden.decode_stage_module.golden.inst_dec.op[5:0]
+TOP.top.mcu.cpu.golden.decode_stage_module.status_backwards_in[1:0]
+@200
+-Execute
+@100000028
+TOP.top.mcu.cpu.golden.execute_stage_module.status_forwards_in[3:0]
+@22
+TOP.top.mcu.cpu.golden.execute_stage_module.jump_address_backwards_in[31:0]
+TOP.top.mcu.cpu.golden.execute_stage_module.program_counter_in[31:0]
+@100000028
+TOP.top.mcu.cpu.golden.execute_stage_module.instruction_in.op[5:0]
+@22
+TOP.top.mcu.cpu.golden.execute_stage_module.rs1_data_in[31:0]
+TOP.top.mcu.cpu.golden.execute_stage_module.rs2_data_in[31:0]
+@100000028
+TOP.top.mcu.cpu.golden.execute_stage_module.status_backwards_in[1:0]
+@200
+-Memory
+@100000028
+TOP.top.mcu.cpu.golden.memory_stage_module.status_forwards_in[3:0]
+@22
+TOP.top.mcu.cpu.golden.memory_stage_module.program_counter_in[31:0]
+@100000028
+TOP.top.mcu.cpu.golden.memory_stage_module.instruction_in.op[5:0]
+@22
+TOP.top.mcu.cpu.golden.memory_stage_module.rd_data_in[31:0]
+TOP.top.mcu.cpu.golden.memory_stage_module.source_data_in[31:0]
+@100000028
+TOP.top.mcu.cpu.golden.memory_stage_module.status_backwards_in[1:0]
+@200
+-Writeback
+@100000028
+TOP.top.mcu.cpu.golden.writeback_stage_module.status_forwards_in[3:0]
+@22
+TOP.top.mcu.cpu.golden.writeback_stage_module.program_counter_in[31:0]
+TOP.top.mcu.cpu.golden.writeback_stage_module.next_program_counter_in[31:0]
+@100000028
+TOP.top.mcu.cpu.golden.writeback_stage_module.instruction_in.op[5:0]
+@22
+TOP.top.mcu.cpu.golden.writeback_stage_module.source_data_in[31:0]
+@200
+-Scratch Area
+@24
+TOP.top.mcu.wb_test.test_reg[31:0]
+@28
+TOP.top.mcu.wb_test.test_stb
+@200
+-Registers
+@25
++{TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[7][31:0].x7_t2} TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[7][31:0]
+@22
++{TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[28][31:0].x28_t3} TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[28][31:0]
++{TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[29][31:0].x29_t4} TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[29][31:0]
++{TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[30][31:0].x30_t5} TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[30][31:0]
++{TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[31][31:0].x31_t6} TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[31][31:0]
++{TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[21][31:0].x21_s5} TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[21][31:0]
++{TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[22][31:0].x22_s6} TOP.top.mcu.cpu.golden.decode_stage_module.golden.reg_file.golden.reg_memory[22][31:0]
+[pattern_trace] 1
+[pattern_trace] 0

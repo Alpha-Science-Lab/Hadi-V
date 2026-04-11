@@ -1,0 +1,10 @@
+{
+    "verilog.linting.linter": "verilator",
+    "verilog.linting.verilator.arguments": "-f sim/files.txt -f test/sv/files.txt --timing -Wall -Wno-MODDUP -Wno-MULTITOP rtl/mcu.sv",
+    "cSpell.ignoreWords": [
+        "MODDUP"
+    ],
+    "files.associations": {
+        "peripherals.h": "c"
+    }
+}

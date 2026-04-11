@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "name": "HaDes-V",
+            "includePath": [
+                "${workspaceFolder}/std/include"
+            ],
+            "defines": [],
+            "compilerPath": "/opt/riscv32i/bin/riscv32-unknown-elf-gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}

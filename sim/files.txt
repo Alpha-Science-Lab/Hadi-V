@@ -1,0 +1,17 @@
+sim/config.vlt
+
+defines/csr.sv
+defines/op.sv
+defines/instruction.sv
+defines/pipeline_status.sv
+defines/constants.sv
+defines/forwarding.sv
+defines/clk_params.sv
+
+-y lib
+-y lib/peripherals
+-y lib/wishbone
+
+-y ref
+
+-y rtl

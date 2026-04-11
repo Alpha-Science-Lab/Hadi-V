@@ -1,0 +1,37 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri Nov  3 15:53:36 2023
+[*]
+[dumpfile] "/home/mdlab/Desktop/hades-v_internal/build/test/sv/example/example.fst"
+[dumpfile_mtime] "Fri Nov  3 15:53:29 2023"
+[dumpfile_size] 3307
+[savefile] "/home/mdlab/Desktop/hades-v_internal/saves/example.gtkw"
+[timestart] 0
+[size] 1920 895
+[pos] 0 0
+*-5.213506 60 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[sst_width] 212
+[signals_width] 258
+[sst_expanded] 1
+[sst_vpaned_height] 251
+@28
+TOP.test_example.clk
+TOP.test_example.rst
+@200
+-
+@24
+TOP.test_example.dut_read_address1[4:0]
+TOP.test_example.dut_read_address2[4:0]
+@22
+TOP.test_example.dut_read_data1[31:0]
+TOP.test_example.dut_read_data2[31:0]
+@200
+-
+@22
+TOP.test_example.dut_write_address[4:0]
+TOP.test_example.dut_write_data[31:0]
+@28
+TOP.test_example.dut_write_enable
+[pattern_trace] 1
+[pattern_trace] 0
