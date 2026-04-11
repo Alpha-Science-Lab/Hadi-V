@@ -48,6 +48,102 @@ It reflects our commitment to contributing, in our own capacity, toward advancin
 
 ---
 
+## Getting Started
+
+This section helps you set up the environment, run simulations, and synthesize the design.
+
+### 1. Prerequisites
+
+Make sure the following tools are installed:
+
+* **Verilator** (for simulation)
+* **GTKWave** (for debugging waveforms)
+* **Xilinx Vivado** (for synthesis and FPGA deployment)
+* **RISC-V GNU Toolchain** (for compiling tests)
+
+> ⚠️ Ensure the toolchain paths in the `Makefile` match your local installation (e.g., `/opt/riscv32i/`, `/opt/Xilinx/`).
+
+---
+
+### 2. Clone the Repository
+
+```bash
+git clone <your-repo-url>
+cd <repo-name>
+```
+
+---
+
+### 3. Run a Simulation Test
+
+#### ▶️ Assembly Test
+
+```bash
+make test/asm/<test_name>
+```
+
+#### ▶️ C Test
+
+```bash
+make test/c/<test_name>
+```
+
+This will:
+
+* Compile the program
+* Generate memory initialization files
+* Run the simulation using Verilator
+
+---
+
+### 4. View Waveforms
+
+After running a test:
+
+```bash
+make show
+```
+
+This opens the waveform in **GTKWave** for debugging.
+
+---
+
+### 5. Clean Build Files
+
+```bash
+make clean
+```
+
+---
+
+### 6. Run SystemVerilog Testbenches
+
+```bash
+make test/sv/<testbench_name>
+```
+
+---
+
+### 7. Synthesize for FPGA
+
+To synthesize the design for FPGA (e.g., Basys3):
+
+```bash
+make synthesis
+```
+
+This uses **Xilinx Vivado** in batch mode to generate the bitstream.
+
+---
+
+### Notes
+
+* The simulation uses precompiled reference models from the `ref/` directory for validation.
+* Output files are generated in the `build/` directory.
+* Waveform save configurations are located in the `saves/` directory.
+
+---
+
 ## • Acknowledgment
 
 We remain sincerely grateful to:
