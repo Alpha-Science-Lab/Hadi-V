@@ -5,6 +5,10 @@
 # File: Makefile
 #
 # Sanity check (taken from verilator examples)
+#
+# Modified by Md. Jannatul Nayem
+# Organization: Alpha Science Lab
+
 ifneq ($(words $(CURDIR)),1)
  $(error Unsupported: GNU Make cannot build in directories containing spaces, build elsewhere: '$(CURDIR)')
 endif
@@ -12,11 +16,15 @@ endif
 # Binaries
 VERILATOR ?= verilator
 
-CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
-OBJCOPY = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
-OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
+# CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
+CC = riscv32-unknown-elf-gcc
+# OBJCOPY = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
+OBJCOPY = riscv32-unknown-elf-objcopy
+# OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
+OBJDUMP = riscv32-unknown-elf-objdump
 
-XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
+# XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
+XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
 
 # Directories
@@ -55,7 +63,7 @@ help:
 	@echo "  clean       Deletes build artifacts"
 	@echo "  test/...    Builds and runs the specified test"
 	@echo "  show        Show the waveform of the most recently run test (if available)"
-	@echo "  bootloader  Build the bootloader"
+# 	@echo "  bootloader  Build the bootloader"
 	@echo "  synthesis   Synthesize the MCU using Vivado"
 
 
