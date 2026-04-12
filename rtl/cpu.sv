@@ -1,4 +1,9 @@
-/* File: cpu.sv*/
+/* 
+ * File: cpu.sv
+ * Brought up by Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * March 2026
+ */
 
 module cpu (
     input logic clk,
