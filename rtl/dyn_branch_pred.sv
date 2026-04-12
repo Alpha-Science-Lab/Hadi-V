@@ -84,11 +84,11 @@ module dyn_branch_pred (
         //--------------------------------------------------------
         if (is_jump) begin
             jump_valid_out   = 1'b1;
-            jump_address_out = instruction_in.imm + program_counter_in; // JAL
+            jump_address_out = instruction_in.immediate + program_counter_in; // JAL
 
             // For JALR (optional refinement)
             if (instruction_in.op == op::JALR) begin
-                jump_address_out = instruction_in.imm; // rs1 should be added externally if needed
+                jump_address_out = instruction_in.immediate; // rs1 should be added externally if needed
             end
         end
 
