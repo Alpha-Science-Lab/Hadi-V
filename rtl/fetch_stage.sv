@@ -22,83 +22,60 @@ module fetch_stage (
     input  logic [31:0] jump_address_backwards_in
 );
 
-    // Program Counter register
     logic [31:0] pc;
 
-    // Wishbone control signals
     assign wb.cyc      = 1'b1;
     assign wb.stb      = 1'b1;
-    assign wb.we       = 1'b0;          // Read operation only
-    assign wb.sel      = 4'b1111;       // Word access
-    assign wb.adr      = pc[31:2];      // word address
-    assign wb.dat_mosi = 32'b0;         // Not used for reads
+    assign wb.we       = 1'b0;
+    assign wb.sel      = 4'b1111;
+    assign wb.adr      = {2'b00, pc[31:2]};
+    assign wb.dat_mosi = 32'b0;
 
-
-    // PC Update Logic
     always_ff @(posedge clk) begin
         if (rst) begin
             pc <= constants::RESET_ADDRESS;
-        end 
-        else begin
+        end else begin
             unique case (status_backwards_in)
-
-                pipeline_status::JUMP:
-                    pc <= jump_address_backwards_in;
-
-                pipeline_status::STALL:
-                    pc <= pc;  // Hold PC
-
-                default: // READY
-                    if (wb.ack)
-                        pc <= pc + 4;
-                
+                pipeline_status::JUMP:  pc <= jump_address_backwards_in;
+                pipeline_status::STALL: pc <= pc;
+                default: begin
+                    if (wb.ack) begin
+                        pc <= pc + 32'd4;
+                    end
+                end
             endcase
         end
     end
 
-
-    // Instruction Register
     always_ff @(posedge clk) begin
         if (rst) begin
             instruction_reg_out     <= 32'b0;
             program_counter_reg_out <= 32'b0;
             status_forwards_out     <= pipeline_status::BUBBLE;
-        end
-        else begin
-
+        end else begin
             if (status_backwards_in == pipeline_status::JUMP) begin
-                // Flush dominates everything
-                status_forwards_out <= pipeline_status::BUBBLE;
-            end
-
-            else if (status_backwards_in == pipeline_status::STALL) begin
-                // HOLD previous value
+                // Flush fetch output while branch redirect propagates.
+                instruction_reg_out     <= instruction_reg_out;
+                program_counter_reg_out <= program_counter_reg_out;
+                status_forwards_out     <= pipeline_status::BUBBLE;
+            end else if (status_backwards_in == pipeline_status::STALL) begin
                 instruction_reg_out     <= instruction_reg_out;
                 program_counter_reg_out <= program_counter_reg_out;
                 status_forwards_out     <= status_forwards_out;
-            end
-
-            else if (wb.err) begin
+            end else if (wb.err) begin
+                instruction_reg_out     <= 32'b0;
                 program_counter_reg_out <= pc;
                 status_forwards_out     <= pipeline_status::FETCH_FAULT;
-            end
-
-            else if (wb.ack) begin
-                // ALWAYS latch when ack happens
+            end else if (wb.ack) begin
                 instruction_reg_out     <= wb.dat_miso;
                 program_counter_reg_out <= pc;
                 status_forwards_out     <= pipeline_status::VALID;
+            end else begin
+                instruction_reg_out     <= instruction_reg_out;
+                program_counter_reg_out <= program_counter_reg_out;
+                status_forwards_out     <= pipeline_status::BUBBLE;
             end
-
-            else begin
-                status_forwards_out <= pipeline_status::BUBBLE;
-            end
-
         end
     end
-
-
-    // TODO: Delete the following line and implement this module.
-    // ref_fetch_stage golden(.*);
 
 endmodule
