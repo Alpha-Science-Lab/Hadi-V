@@ -155,25 +155,19 @@ module writeback_stage (
     always_comb begin
         exception_taken = 1'b0;
         exception_cause = 32'h0;
-        
-        unique case (instruction_in.op)
-            op::ECALL:  begin exception_taken = 1; exception_cause = 11; end
-            op::EBREAK: begin exception_taken = 1; exception_cause = 3;  end
+
+        unique case (status_forwards_in)
+            pipeline_status::ECALL:               begin exception_taken = 1; exception_cause = 11; end
+            pipeline_status::EBREAK:              begin exception_taken = 1; exception_cause = 3;  end
+            pipeline_status::FETCH_FAULT:         begin exception_taken = 1; exception_cause = 1;  end
+            pipeline_status::ILLEGAL_INSTRUCTION: begin exception_taken = 1; exception_cause = 2;  end
+            pipeline_status::FETCH_MISALIGNED:    begin exception_taken = 1; exception_cause = 0;  end
+            pipeline_status::LOAD_MISALIGNED:     begin exception_taken = 1; exception_cause = 4;  end
+            pipeline_status::LOAD_FAULT:          begin exception_taken = 1; exception_cause = 5;  end
+            pipeline_status::STORE_MISALIGNED:    begin exception_taken = 1; exception_cause = 6;  end
+            pipeline_status::STORE_FAULT:         begin exception_taken = 1; exception_cause = 7;  end
             default: ;
         endcase
-
-        if (!exception_taken) begin
-            unique case (status_forwards_in)
-                pipeline_status::FETCH_FAULT:         begin exception_taken = 1; exception_cause = 1; end
-                pipeline_status::ILLEGAL_INSTRUCTION: begin exception_taken = 1; exception_cause = 2; end
-                pipeline_status::FETCH_MISALIGNED:    begin exception_taken = 1; exception_cause = 0; end
-                pipeline_status::LOAD_MISALIGNED:     begin exception_taken = 1; exception_cause = 4; end
-                pipeline_status::LOAD_FAULT:          begin exception_taken = 1; exception_cause = 5; end
-                pipeline_status::STORE_MISALIGNED:    begin exception_taken = 1; exception_cause = 6; end
-                pipeline_status::STORE_FAULT:         begin exception_taken = 1; exception_cause = 7; end
-                default: ;
-            endcase
-        end
     end
 
     // ============================================================
@@ -230,8 +224,8 @@ module writeback_stage (
         end
     end
 
-    assign trap_pc = (ext_irq || tim_irq) ? 
-        next_program_counter_in : program_counter_in;
+    assign trap_pc = exception_taken ? program_counter_in : (ext_irq || tim_irq) ? 
+        next_program_counter_in : '0;
 
 
     // ============================================================
