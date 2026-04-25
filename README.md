@@ -10,41 +10,70 @@ We gratefully acknowledge and credit the original authors for making this resour
 
 ---
 
-## 🇧🇩 Alpha Science Lab — Independence Day Initiative
+## Independence In Deep Technology
 
-On the occasion of Independence Day March 26, **Alpha Science Lab, Mymensingh Engineering College**, humbly shares a milestone from its ongoing journey in hardware design and engineering.
+On the occasion of Independence Day, March 26, **Alpha Science Lab, Mymensingh Engineering College**, humbly shares a milestone from its ongoing journey in hardware design and engineering.
 
-## • Hadi-V
+## • Swadheen SoC
 
-**Hadi-V** is an in-house developed RISC-V processor core, named in tribute to the nation’s martyred hero **Sharif Osman Hadi**.
+**Swadheen SoC** is an in-house developed RISC-V based system-on-chip, designed as part of our effort to build practical capability in processor design, SoC integration, verification, and FPGA-based hardware realization.
 
-Through this effort, we aim to honor his legacy by embedding his name within a pursuit that represents resilience, progress, and the spirit of building.
+The SoC integrates a RISC-V processor (In-house developed ***Hadi-V***) core with memory and memory-mapped peripherals through a Wishbone-based interconnect, creating a compact platform for experimentation, learning, and future extension.
+
+Through this effort, we aim to contribute, in our own capacity, to the growth of deep technology capability in Bangladesh.
 
 ---
 
-## • Core Specifications
+## • Core and SoC Specifications
 
-* RV32I_Zicsr compliant core
+* RV32I_Zicsr compliant RISC-V processor core
 * Machine-mode support
 * 5-stage scalar pipeline architecture
-* Dynamic branch prediction
+* Wishbone-based memory and peripheral interconnect
+* Dual-port Wishbone RAM interface for instruction fetch and data access
+* Memory-mapped peripheral architecture
 * Designed with a focus on clarity, modularity, and extensibility
+
+---
+
+## • Integrated Peripherals
+
+The SoC currently includes the following Wishbone-connected peripherals:
+
+* Wishbone RAM
+* Wishbone LEDs
+* Wishbone Buttons
+* Wishbone UART
+* Wishbone Timer
+* Wishbone Test Peripheral
+
+The following peripherals are planned or under development:
+
+* Wishbone I2C
+* Wishbone PWM
+
+The following peripherals from the original framework are being dropped from this SoC configuration:
+
+* Wishbone Switches
+* Wishbone 7-Segment Display
+* Wishbone VGA
 
 ---
 
 ## • Development Status
 
-* **Design**: Initial phase completed
-* **Verification**: Functionally verified using the verification platform provided by **Graz University of Technology**
-* **Synthesis**: Successfully deployed on the **Digilent Basys3 FPGA Board**
+* **Design**: Initial SoC integration phase ongoing
+* **Verification**: System level vefication is ongoing
+* **Synthesis**: Target device **Digilent Basys3 FPGA Board**
+* **Peripheral Development**: I2C and PWM peripherals are under development
 
 ---
 
 ## • Our Perspective
 
-This work represents our effort across the complete digital design flow — from architecture and RTL development to verification and hardware realization.
+This work represents our effort across the complete digital design flow — from architecture and RTL development to SoC integration, verification, and hardware realization.
 
-It reflects our commitment to contributing, in our own capacity, toward advancing capability in deep technology domains such as VLSI and processor design in Bangladesh.
+It reflects our commitment to contributing, in our own capacity, toward advancing capability in deep technology domains such as VLSI, processor design, and SoC development in Bangladesh.
 
 ---
 
@@ -56,19 +85,19 @@ This section helps you set up the environment, run simulations, and synthesize t
 
 Make sure the following tools are installed:
 
-* **Verilator** (for simulation)
-* **GTKWave** (for debugging waveforms)
-* **Xilinx Vivado** (for synthesis and FPGA deployment)
-* **RISC-V GNU Toolchain** (for compiling tests)
+* **Verilator** for simulation
+* **GTKWave** for debugging waveforms
+* **Xilinx Vivado** for synthesis and FPGA deployment
+* **RISC-V GNU Toolchain** for compiling tests
 
-> ⚠️ Ensure the toolchain paths in the `Makefile` match your local installation (e.g., `/opt/riscv32i/`, `/opt/Xilinx/`).
+> ⚠️ Ensure the toolchain paths in the `Makefile` match your local installation, for example `/opt/riscv32i/` and `/opt/Xilinx/`.
 
 ---
 
 ### 2. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
+git clone <repo-url>
 cd <repo-name>
 ```
 
@@ -126,7 +155,7 @@ make test/sv/<testbench_name>
 
 ### 7. Synthesize for FPGA
 
-To synthesize the design for FPGA (e.g., Basys3):
+To synthesize the design for FPGA, for example on the Basys3 board:
 
 ```bash
 make synthesis
@@ -136,11 +165,13 @@ This uses **Xilinx Vivado** in batch mode to generate the bitstream.
 
 ---
 
-### Notes
+## Notes
 
 * The simulation uses precompiled reference models from the `ref/` directory for validation.
 * Output files are generated in the `build/` directory.
 * Waveform save configurations are located in the `saves/` directory.
+* The SoC uses a Wishbone-based interconnect to connect memory and peripherals.
+* Some peripherals are currently under development and may not be enabled in all builds.
 
 ---
 
@@ -148,14 +179,13 @@ This uses **Xilinx Vivado** in batch mode to generate the bitstream.
 
 We remain sincerely grateful to:
 
-* The original HaDes-V authors for their open educational contribution
+* The original HaDes-V authors
 * Our mentors and peers
 * The broader academic and open-source communities
 
-for their continued guidance and support.
+For their continued guidance and support.
 
 ---
 
-**Alpha Science Lab**
+**Alpha Science Lab**  
 Mymensingh Engineering College
-
