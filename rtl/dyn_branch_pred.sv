@@ -1,5 +1,5 @@
 /* 
- * File: branch_pred_pkg.sv
+ * File: dyn_branch_pred.sv
  * Brought up by Md. Jannatul Nayem
  * Organization: Alpha Science Lab
  * April 2026
@@ -165,9 +165,9 @@ module dyn_branch_pred (
                 // Case 2: No entry → only add if TAKEN
                 //------------------------------------------------
                 else if (update_in.taken) begin
+                    btb[upd_index].counter <= 2'b11; // strongly taken
                     btb[upd_index].valid   <= 1'b1;
                     btb[upd_index].tag     <= upd_tag;
-                    btb[upd_index].counter <= 2'b11; // strongly taken
                     btb[upd_index].target  <= update_in.target;
                 end
             end
