@@ -59,9 +59,6 @@ module execute_stage (
         source_data_calc   = 32'd0;
         status_calc        = status_forwards_in;
         jump_target_calc   = 32'd0;
-        if (status_calc != pipeline_status::VALID && status_forwards_in == VALID) begin
-            $display("(%t) [EXECUTE] Status changed to %0d", $time, status_calc);
-        end
         jump_taken_calc    = 1'b0;
         writes_rd_calc     = 1'b0;
         rd_data_valid_calc = 1'b0;
@@ -260,7 +257,7 @@ module execute_stage (
         status_backwards_out = status_backwards_in;
         jump_address_backwards_out = jump_address_backwards_in;
 
-        if (status_backwards_in != pipeline_status::JUMP) begin
+        if (status_backwards_in == pipeline_status::READY) begin
             if (status_forwards_in == pipeline_status::VALID && jump_taken_calc) begin
                 status_backwards_out = pipeline_status::JUMP;
                 jump_address_backwards_out = jump_target_calc;
@@ -298,10 +295,12 @@ module execute_stage (
         forwarding_out.data       = 32'd0;
         forwarding_out.data_valid = 1'b0;
 
-        if (status_calc == pipeline_status::VALID && writes_rd_calc && (instruction_in.rd_address != 5'd0)) begin
+        if (status_calc == pipeline_status::VALID && (instruction_in.rd_address != 5'd0)) begin
             forwarding_out.address    = instruction_in.rd_address;
-            forwarding_out.data       = rd_data_calc;
-            forwarding_out.data_valid = rd_data_valid_calc;
+            if (writes_rd_calc) begin
+                forwarding_out.data       = rd_data_calc;
+                forwarding_out.data_valid = rd_data_valid_calc;
+            end
         end
     end
 
