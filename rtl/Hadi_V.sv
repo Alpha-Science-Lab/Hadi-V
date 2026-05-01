@@ -1,11 +1,11 @@
 /* 
- * File: cpu.sv
+ * File: Hadi_V.sv
  * Brought up by Md. Jannatul Nayem
  * Organization: Alpha Science Lab
  * March 2026
  */
 
-module cpu (
+module Hadi_V (
     input logic clk,
     input logic rst,
 
