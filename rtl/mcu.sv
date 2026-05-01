@@ -105,7 +105,7 @@ module mcu #(
     };
 
     // Instantiate CPU
-    cpu cpu(
+    Hadi_V cpu(
         .clk(clk),
         .rst(rst),
         .memory_fetch_port(fetch_bus.master),
