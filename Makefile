@@ -2,9 +2,6 @@
 # Embedded Architectures & Systems Group, Graz University of Technology
 # SPDX-License-Identifier: MIT
 # ---------------------------------------------------------------------
-# File: Makefile
-#
-# Sanity check (taken from verilator examples)
 #
 # Modified by Md. Jannatul Nayem
 # Organization: Alpha Science Lab
