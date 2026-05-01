@@ -1,188 +1,373 @@
-
-
-
+/* File: decode_stage.sv
+ * Brought up by Monjurul Islam Bhuiyan
+ * Md. Mosharrof Hossain and Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * March 2026
+ *
+ * Responsibilities of this stage:
+ * - Decode the fetched instruction
+ * - Read operands from the register file
+ * - Apply forwarding if newer data exists in later stages
+ * - Detect hazards that require stalling
+ * - Generate pipeline control signals
+ * - Detect instruction exceptions (ECALL, EBREAK, ILLEGAL_INSTRUCTION)
+ *
+ * Pipeline conventions used:
+ *
+ * FORWARD SIGNALS
+ *  propagate with pipeline registers (sequential)
+ *
+ * BACKWARD SIGNALS
+ *  propagate immediately (combinational)
+ *
+ */
 
 module decode_stage (
     input logic clk,
     input logic rst,
 
-    // Inputs
-    input logic [31:0]  instruction_in,
-    input logic [31:0]  program_counter_in,
+    //============================================================
+    // Inputs from Fetch Stage
+    //============================================================
+
+    // Raw instruction fetched from memory
+    input logic [31:0] instruction_in,
+
+    // Program counter corresponding to instruction_in
+    input logic [31:0] program_counter_in,
+
+    //============================================================
+    // Forwarding inputs from later pipeline stages
+    //============================================================
+
+    // Result produced by Execute stage
     input forwarding::t exe_forwarding_in,
+
+    // Result produced by Memory stage
     input forwarding::t mem_forwarding_in,
+
+    // Result produced by Writeback stage
     input forwarding::t wb_forwarding_in,
 
-    // Output Registers
-    output logic [31:0]   rs1_data_reg_out,
-    output logic [31:0]   rs2_data_reg_out,
-    output logic [31:0]   program_counter_reg_out,
+    //============================================================
+    // Pipeline register outputs to Execute stage
+    //============================================================
+
+    // Source register values after forwarding
+    output logic [31:0] rs1_data_reg_out,
+    output logic [31:0] rs2_data_reg_out,
+
+    // PC associated with the decoded instruction
+    output logic [31:0] program_counter_reg_out,
+
+    // Fully decoded instruction structure
     output instruction::t instruction_reg_out,
 
-    // Pipeline control
+    //============================================================
+    // Pipeline control signals
+    //============================================================
+
+    // Forward pipeline status (comes from Fetch)
     input  pipeline_status::forwards_t  status_forwards_in,
+
+    // Forward pipeline status (to Execute)
     output pipeline_status::forwards_t  status_forwards_out,
+
+    // Backward pipeline control (from Execute)
     input  pipeline_status::backwards_t status_backwards_in,
+
+    // Backward pipeline control (to Fetch)
     output pipeline_status::backwards_t status_backwards_out,
+
+    // Jump address propagated backwards
     input  logic [31:0] jump_address_backwards_in,
     output logic [31:0] jump_address_backwards_out
 );
 
+    //============================================================
+    // Internal Signals
+    //============================================================
+
+    // Final operand values for forwarding
+    logic [31:0] rs1_data;
+    logic [31:0] rs2_data;
+
+    // Indicates a data hazard requiring pipeline stall
+    logic stall_forwarding;
+
+    // Raw register file outputs
+    logic [31:0] rs1_data_rf;
+    logic [31:0] rs2_data_rf;
+
+    // Next forward pipeline status (before register update)
+    pipeline_status::forwards_t next_status_forwards;
+
+    // Decoded instruction structure
     instruction::t decoded_instruction;
 
-    logic [31:0] register_file_rs1_data;
-    logic [31:0] register_file_rs2_data;
+    // Status forwards is vaild or not
+    logic pipeline_forwards_valid;
 
-    logic [31:0] rs1_data_selected;
-    logic [31:0] rs2_data_selected;
-    logic rs1_waits_for_forwarding;
-    logic rs2_waits_for_forwarding;
-    logic local_stall;
+    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
-    logic [31:0] rs1_data_reg;
-    logic [31:0] rs2_data_reg;
-    logic [31:0] program_counter_reg;
-    instruction::t instruction_reg;
-    pipeline_status::forwards_t status_reg;
 
-    instruction_decoder instruction_decoder_inst (
+    //============================================================
+    // Instruction Decoder
+    //============================================================
+    // Extracts instruction fields such as:
+    // - opcode
+    // - rs1 / rs2 addresses
+    // - rd address
+    // - immediate
+    // - csr address
+    //============================================================
+
+    instruction_decoder decoder (
         .instruction_in(instruction_in),
         .instruction_out(decoded_instruction)
     );
 
-    register_file register_file_inst (
+
+    //============================================================
+    // Register File
+    //============================================================
+    // Reads values from architectural registers (x0–x31).
+    //
+    // Writeback stage updates registers through forwarding input.
+    //============================================================
+
+    register_file rf (
         .clk(clk),
         .rst(rst),
+
         .read_address1(decoded_instruction.rs1_address),
-        .read_data1(register_file_rs1_data),
+        .read_data1(rs1_data_rf),
+
         .read_address2(decoded_instruction.rs2_address),
-        .read_data2(register_file_rs2_data),
+        .read_data2(rs2_data_rf),
+
+        // Writeback stage performs actual register update
         .write_address(wb_forwarding_in.address),
         .write_data(wb_forwarding_in.data),
-        .write_enable(wb_forwarding_in.data_valid && (wb_forwarding_in.address != 5'b0))
+        .write_enable(wb_forwarding_in.data_valid)
     );
 
-    always_comb begin
-        rs1_data_selected = register_file_rs1_data;
-        rs1_waits_for_forwarding = 1'b0;
 
-        if (decoded_instruction.rs1_address == 5'b0) begin
-            rs1_data_selected = 32'b0;
+    //============================================================
+    // Forwarding Unit
+    //============================================================
+    // Forwarding resolves RAW (Read After Write) hazards.
+    //
+    // Priority:
+    //   Execute > Memory > Writeback > Reg File
+    //
+    // Execute stage has the newest data.
+    //
+    // If a matching address is found but data is not yet valid,
+    // the pipeline must stall.
+    //============================================================
+
+    always_comb begin
+
+        stall_forwarding = 1'b0;
+        // Default values come from register file
+        rs1_data = rs1_data_rf;
+        rs2_data = rs2_data_rf;
+
+        //---------------- RS1 Forwarding ----------------
+
+        // Register x0 is always zero -> never forwarded
+        if (decoded_instruction.rs1_address != 0) begin
+
+            // Check Execute stage
+            if (exe_forwarding_in.address == decoded_instruction.rs1_address) begin
+                if(pipeline_forwards_valid) begin
+                    if (exe_forwarding_in.data_valid)
+                        rs1_data = exe_forwarding_in.data;
+                    else
+                        stall_forwarding = 1'b1;
+                end
+            end
+
+            // Check Memory stage
+            else if (mem_forwarding_in.address == decoded_instruction.rs1_address) begin
+                if(pipeline_forwards_valid) begin
+                    if (mem_forwarding_in.data_valid)
+                        rs1_data = mem_forwarding_in.data;
+                    else
+                        stall_forwarding = 1'b1;
+                end
+            end
+
+            // Check Writeback stage
+            else if (wb_forwarding_in.address == decoded_instruction.rs1_address) begin
+                if(pipeline_forwards_valid) begin
+                    if (wb_forwarding_in.data_valid)
+                        rs1_data = wb_forwarding_in.data;
+                    else 
+                        stall_forwarding = 1'b1;
+                end
+            end
         end
-        else if ((decoded_instruction.rs1_address == exe_forwarding_in.address) &&
-                 (exe_forwarding_in.address != 5'b0)) begin
-            rs1_data_selected = exe_forwarding_in.data;
-            rs1_waits_for_forwarding = !exe_forwarding_in.data_valid;
-        end
-        else if ((decoded_instruction.rs1_address == mem_forwarding_in.address) &&
-                 (mem_forwarding_in.address != 5'b0)) begin
-            rs1_data_selected = mem_forwarding_in.data;
-            rs1_waits_for_forwarding = !mem_forwarding_in.data_valid;
-        end
-        else if ((decoded_instruction.rs1_address == wb_forwarding_in.address) &&
-                 (wb_forwarding_in.address != 5'b0)) begin
-            rs1_data_selected = wb_forwarding_in.data;
-            rs1_waits_for_forwarding = !wb_forwarding_in.data_valid;
+
+
+        //---------------- RS2 Forwarding ----------------
+
+        if (decoded_instruction.rs2_address != 0) begin
+
+            if (exe_forwarding_in.address == decoded_instruction.rs2_address) begin
+                if(pipeline_forwards_valid) begin
+                    if (exe_forwarding_in.data_valid)
+                        rs2_data = exe_forwarding_in.data;
+                    else
+                        stall_forwarding = 1'b1;
+                end
+            end
+
+            else if (mem_forwarding_in.address == decoded_instruction.rs2_address) begin
+                if(pipeline_forwards_valid) begin
+                    if (mem_forwarding_in.data_valid)
+                        rs2_data = mem_forwarding_in.data;
+                    else
+                        stall_forwarding = 1'b1;
+                end
+            end
+
+            else if (wb_forwarding_in.address == decoded_instruction.rs2_address) begin
+                if(pipeline_forwards_valid) begin
+                    if (wb_forwarding_in.data_valid)
+                        rs2_data = wb_forwarding_in.data;
+                    else
+                        stall_forwarding = 1'b1;
+                end
+            end
         end
     end
 
-    always_comb begin
-        rs2_data_selected = register_file_rs2_data;
-        rs2_waits_for_forwarding = 1'b0;
 
-        if (decoded_instruction.rs2_address == 5'b0) begin
-            rs2_data_selected = 32'b0;
-        end
-        else if ((decoded_instruction.rs2_address == exe_forwarding_in.address) &&
-                 (exe_forwarding_in.address != 5'b0)) begin
-            rs2_data_selected = exe_forwarding_in.data;
-            rs2_waits_for_forwarding = !exe_forwarding_in.data_valid;
-        end
-        else if ((decoded_instruction.rs2_address == mem_forwarding_in.address) &&
-                 (mem_forwarding_in.address != 5'b0)) begin
-            rs2_data_selected = mem_forwarding_in.data;
-            rs2_waits_for_forwarding = !mem_forwarding_in.data_valid;
-        end
-        else if ((decoded_instruction.rs2_address == wb_forwarding_in.address) &&
-                 (wb_forwarding_in.address != 5'b0)) begin
-            rs2_data_selected = wb_forwarding_in.data;
-            rs2_waits_for_forwarding = !wb_forwarding_in.data_valid;
-        end
+    //============================================================
+    // Backward Pipeline Control (COMBINATIONAL)
+    //============================================================
+    // Backward signals immediately affect earlier stages.
+    //
+    // STALL:
+    //   Prevents Fetch from advancing the pipeline.
+    //
+    // JUMP:
+    //   Indicates control flow change detected in Execute.
+    //============================================================
+
+    always_comb begin
+
+        status_backwards_out = pipeline_status::READY;
+        // Forward jump address backward
+        jump_address_backwards_out = jump_address_backwards_in;
+
+        // Jump cancels stall
+        if (status_backwards_in == pipeline_status::JUMP)
+            status_backwards_out = pipeline_status::JUMP;
+        
+        else if (status_backwards_in == pipeline_status::STALL)
+            status_backwards_out = pipeline_status::STALL;
+        
+        else if (stall_forwarding)
+            status_backwards_out = pipeline_status::STALL; 
+        
     end
 
-    assign local_stall =
-        (status_forwards_in == pipeline_status::VALID) &&
-        (rs1_waits_for_forwarding || rs2_waits_for_forwarding);
+
+    //============================================================
+    // Forward Status Logic
+    //============================================================
+    // Determines the pipeline state passed to the next stage.
+    //
+    // Possible outputs:
+    // VALID
+    // BUBBLE
+    // ECALL
+    // EBREAK
+    // ILLEGAL_INSTRUCTION
+    //============================================================
+
+    always_comb begin
+
+        // Jump flushes decode stage
+        if (status_backwards_in == pipeline_status::JUMP)
+            next_status_forwards = pipeline_status::BUBBLE;
+        
+        else if (stall_forwarding)
+            next_status_forwards = pipeline_status::BUBBLE;
+        
+        else if (pipeline_forwards_valid) begin
+
+            // Exception handling
+            if (decoded_instruction.op == op::ECALL)
+                next_status_forwards = pipeline_status::ECALL;
+
+            else if (decoded_instruction.op == op::EBREAK)
+                next_status_forwards = pipeline_status::EBREAK;
+
+            else if (decoded_instruction.op == op::ILLEGAL)
+                next_status_forwards = pipeline_status::ILLEGAL_INSTRUCTION;
+                
+            else 
+                next_status_forwards = pipeline_status::VALID;
+        end
+
+        else begin
+            // Propagate status from previous stage
+            // Say there was pipeline_status::FETCH_FAULT in IF stage
+            next_status_forwards = status_forwards_in;
+        end
+
+    end
+
+
+    //============================================================
+    // Pipeline Registers (SEQUENTIAL)
+    //============================================================
+    // These registers transfer values to the Execute stage.
+    //
+    // Pipeline rule:
+    //   Forward signals must update sequentially.
+    //============================================================
 
     always_ff @(posedge clk) begin
+
         if (rst) begin
-            rs1_data_reg <= 32'b0;
-            rs2_data_reg <= 32'b0;
-            program_counter_reg <= 32'b0;
-            instruction_reg <= instruction::NOP;
-            status_reg <= pipeline_status::BUBBLE;
-        end
-        else if (status_backwards_in == pipeline_status::JUMP) begin
-            status_reg <= pipeline_status::BUBBLE;
-        end
-        else if (status_backwards_in == pipeline_status::STALL) begin
-            rs1_data_reg <= rs1_data_reg;
-            rs2_data_reg <= rs2_data_reg;
-            program_counter_reg <= program_counter_reg;
-            instruction_reg <= instruction_reg;
-            status_reg <= status_reg;
+            instruction_reg_out <= '0;
+            program_counter_reg_out <= '0;
+            rs1_data_reg_out <= '0;
+            rs2_data_reg_out <= '0;
+
+            // Reset pipeline with bubble
+            status_forwards_out <= pipeline_status::BUBBLE;
         end
         else begin
-            unique case (status_forwards_in)
-                pipeline_status::VALID: begin
-                    if (local_stall) begin
-                        status_reg <= pipeline_status::BUBBLE;
-                    end
-                    else begin
-                        rs1_data_reg <= rs4_data_selected;
-                        rs2_data_reg <= rs2_data_selected;
-                        program_counter_reg <= program_counter_in;
-                        instruction_reg <= decoded_instruction;
+            if(status_backwards_in != pipeline_status::STALL) begin
+                // Update forward pipeline status
+                status_forwards_out <= next_status_forwards;
 
-                        unique case (decoded_instruction.op)
-                            op::ILLEGAL: status_reg <= pipeline_status::ILLEGAL_INSTRUCTION;
-                            op::ECALL:   status_reg <= pipeline_status::ECALL;
-                            op::EBREAK:  status_reg <= pipeline_status::EBREAK;
-                            default:     status_reg <= pipeline_status::VALID;
-                        endcase
-                    end
+                if (next_status_forwards == pipeline_status::VALID) begin
+                    // Transfer decoded instruction
+                    instruction_reg_out <= decoded_instruction;
+                    // Transfer PC
+                    program_counter_reg_out <= program_counter_in;
+                    // Transfer operand values
+                    rs1_data_reg_out <= rs1_data;
+                    rs2_data_reg_out <= rs2_data;
+
+                end else begin
+                    instruction_reg_out <= '0;
+                    // Memory address corresponding to the error
+                    program_counter_reg_out <= program_counter_in;
+                    rs1_data_reg_out <= '0;
+                    rs2_data_reg_out <= '0;
                 end
 
-                pipeline_status::BUBBLE: begin
-                    status_reg <= pipeline_status::BUBBLE;
-                end
-
-                default: begin
-                    rs1_data_reg <= 32'b0;
-                    rs2_data_reg <= 32'b0;
-                    program_counter_reg <= program_counter_in;
-                    instruction_reg <= instruction::NOP;
-                    status_reg <= status_forwards_in;
-                end
-            endcase
+            end
+            // else: HOLD state (no assignment)
         end
     end
-
-    always_comb begin
-        if (status_backwards_in != pipeline_status::READY) begin
-            status_backwards_out = status_backwards_in;
-            jump_address_backwards_out = jump_address_backwards_in;
-        end
-        else begin
-            status_backwards_out = local_stall ? pipeline_status::STALL : pipeline_status::READY;
-            jump_address_backwards_out = 32'b0;
-        end
-    end
-
-    assign rs1_data_reg_out = rs1_data_reg;
-    assign rs2_data_reg_out = rs2_data_reg;
-    assign program_counter_reg_out = program_counter_reg;
-    assign instruction_reg_out = instruction_reg;
-    assign status_forwards_out = status_reg;
 
 endmodule
