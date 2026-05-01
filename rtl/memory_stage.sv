@@ -3,8 +3,6 @@
  * Organization: Alpha Science Lab
  * March 2026  
  *
- * Memory Stage of the pipeline
- *
  * Responsibilities:
  *  - Execute all LOAD instructions
  *      LB, LH, LW, LBU, LHU
