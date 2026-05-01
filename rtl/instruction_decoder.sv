@@ -2,7 +2,7 @@
  * Brought up by Md. Mosharrof Hossain
  * Organization: Alpha Science Lab
  * March 2026
-*/
+ */
 
 module instruction_decoder (
     input  logic [31:0]   instruction_in,
@@ -260,6 +260,7 @@ module instruction_decoder (
                     3'b101: instruction_out.op = op::BGE;
                     3'b110: instruction_out.op = op::BLTU;
                     3'b111: instruction_out.op = op::BGEU;
+                    default: instruction_out.op = op::ILLEGAL;
                 endcase
             end
 
@@ -273,6 +274,7 @@ module instruction_decoder (
                     3'b010: instruction_out.op = op::LW;
                     3'b100: instruction_out.op = op::LBU;
                     3'b101: instruction_out.op = op::LHU;
+                    default: instruction_out.op = op::ILLEGAL;
                 endcase
             end
 
@@ -284,6 +286,7 @@ module instruction_decoder (
                     3'b000: instruction_out.op = op::SB;
                     3'b001: instruction_out.op = op::SH;
                     3'b010: instruction_out.op = op::SW;
+                    default: instruction_out.op = op::ILLEGAL;
                 endcase
             end
 
@@ -315,6 +318,7 @@ module instruction_decoder (
                             instruction_out.immediate = imm_i_s;
                         end
                     end
+                    default: instruction_out.op = op::ILLEGAL;
                 endcase
             end
 
@@ -352,6 +356,8 @@ module instruction_decoder (
                         if (funct7 == 7'b0000000) instruction_out.op = op::AND;
                     end
 
+                    default: instruction_out.op = op::ILLEGAL;
+
                 endcase
             end
 
@@ -362,6 +368,7 @@ module instruction_decoder (
                 case (funct3)
                     3'b000: instruction_out.op = op::FENCE;
                     3'b001: instruction_out.op = op::FENCE_I;
+                    default: instruction_out.op = op::ILLEGAL;
                 endcase
             end
 
@@ -378,6 +385,7 @@ module instruction_decoder (
                             12'h001: instruction_out.op = op::EBREAK;
                             12'h302: instruction_out.op = op::MRET;
                             12'h105: instruction_out.op = op::WFI;
+                            default: instruction_out.op = op::ILLEGAL;
                         endcase
                     end
 
@@ -423,11 +431,11 @@ module instruction_decoder (
                         csr_is_op = 1'b1;
                         csr_write = (imm_csr != 32'b0);
                     end
-
+                    default: instruction_out.op = op::ILLEGAL;
                 endcase
                 
             end
-
+            default: instruction_out.op = op::ILLEGAL;
         endcase
 
         // CSR legality checks
@@ -445,8 +453,5 @@ module instruction_decoder (
 
     end
 
-
-    // TODO: Delete the following line and implement this module.
-    // ref_instruction_decoder golden(.*);
 
 endmodule

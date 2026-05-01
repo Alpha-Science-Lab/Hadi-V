@@ -1,369 +1,259 @@
 /* File: execute_stage.sv
- * Brought up by Md. Jubayer Fahad
+ * Brought up by Md. Jannatul Nayem
  * Organization: Alpha Science Lab
  * March 2026
- *
- * Responsibilities:
- *  - Perform ALU operations
- *  - Evaluate branch conditions
- *  - Compute memory addresses
- *  - Generate next PC
- *  - Handle jump control signals
- *  - Detect misaligned instruction fetch
- *  - Generate forwarding data
- *
- * Pipeline control rules:
- *
- * FORWARDS signals (status_forwards):
- *   - Sequential (registered)
- *   - Propagate pipeline exceptions
- *
- * BACKWARDS signals (status_backwards, jump_address):
- *   - Pure combinational
- *   - Must propagate immediately without delay
- *   - Later pipeline stages have priority
  */
 
 module execute_stage (
 
-    // Clock / Reset
-    input logic clk,
-    input logic rst,
+    input  logic clk,
+    input  logic rst,
 
-    // Operand inputs from register file
-    input logic [31:0]   rs1_data_in,
-    input logic [31:0]   rs2_data_in,
+    // Inputs
+    input  logic [31:0]   rs1_data_in,
+    input  logic [31:0]   rs2_data_in,
+    input  instruction::t instruction_in,
+    input  logic [31:0]   program_counter_in,
 
-    // Decoded instruction
-    input instruction::t instruction_in,
-
-    // PC of current instruction
-    input logic [31:0]   program_counter_in,
-
-
-    // =============================
-    // Pipeline register outputs
-    // =============================
-
-    // Data used by store or CSR operations
+    // Outputs
     output logic [31:0]   source_data_reg_out,
-
-    // Result written to rd register
     output logic [31:0]   rd_data_reg_out,
-
-    // Instruction forwarded to next stage
     output instruction::t instruction_reg_out,
-
-    // PC forwarded to next stage
     output logic [31:0]   program_counter_reg_out,
-
-    // Next PC (used by fetch stage)
     output logic [31:0]   next_program_counter_reg_out,
 
-    // Forwarding bus to earlier stages
     output forwarding::t  forwarding_out,
 
-
-    // =============================
     // Pipeline control
-    // =============================
-
-    // Status moving forward through pipeline
     input  pipeline_status::forwards_t  status_forwards_in,
     output pipeline_status::forwards_t  status_forwards_out,
 
-    // Status moving backward through pipeline
     input  pipeline_status::backwards_t status_backwards_in,
     output pipeline_status::backwards_t status_backwards_out,
 
-    // Jump address propagation
     input  logic [31:0] jump_address_backwards_in,
     output logic [31:0] jump_address_backwards_out
 );
 
+    // ALU signals
+    logic [31:0] alu_result;
+    logic [31:0] operand_a, operand_b;
+    logic [31:0] next_pc;
 
-    // ==========================================================
-    // Internal Signals
-    // ==========================================================
+    // Branch signals
+    logic [31:0] jump_address;
+    logic        jump_taken;
+    logic        branch_taken;
 
-    logic [31:0] alu_result;          // ALU computation result
-    logic [31:0] next_pc;             // Next PC candidate
-    logic [31:0] jump_address;        // Target PC for jumps/branches
-    logic        branch_taken;        // Branch condition result
-
-    logic [31:0] source_data;         // Data forwarded for store/CSR
-
-    // Pipeline control helpers
+    // Pipeline status
     pipeline_status::forwards_t  status_forwards_next;
     pipeline_status::backwards_t local_backwards_status;
 
-    // Status forwards is vaild or not
     logic pipeline_forwards_valid;
-    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID) || (status_forwards_in == pipeline_status::ECALL)
-                                    || (status_forwards_in == pipeline_status::EBREAK);
+    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
 
-    // ==========================================================
-    // ALU + Control Logic
-    // Pure combinational logic
-    // ==========================================================
+    // ============================================================
+    // ALU OPERANDS
+    // ============================================================
 
     always_comb begin
+        operand_a = rs1_data_in;
+        operand_b = rs2_data_in;
 
-        // Default values
+        // B-Type and S-Type use rs2_data_in for operand_b
+        // I-Type and U-Type and J-Type use immediate
+        if (instruction_in.op inside {
+            op::ADDI, op::SLTI, op::SLTIU, op::XORI, op::ORI, op::ANDI,
+            op::SLLI, op::SRLI, op::SRAI,
+            op::LB, op::LH, op::LW, op::LBU, op::LHU,
+            op::SB, op::SH, op::SW,
+            op::LUI, op::AUIPC,
+            op::JAL, op::JALR
+        }) begin
+            operand_b = instruction_in.immediate;
+        end
+
+        // CSR instructions with immediate
+        if (instruction_in.op inside {op::CSRRWI, op::CSRRSI, op::CSRRCI}) begin
+            operand_a = instruction_in.immediate;
+        end
+    end
+
+
+    // ============================================================
+    // ALU OPERATION
+    // ============================================================
+
+    always_comb begin
         alu_result   = 32'b0;
-        next_pc      = program_counter_in + 32'd4;
-        jump_address = 32'b0;
+        jump_taken   = 1'b0;
         branch_taken = 1'b0;
+        jump_address = 32'b0;
+        next_pc      = program_counter_in + 32'd4;
 
-        source_data  = 32'b0;
+        unique case (instruction_in.op)
+            op::ADD, op::ADDI, op::LB, op::LH, op::LW, op::LBU, op::LHU, op::SB, op::SH, op::SW:
+                alu_result = operand_a + operand_b;
 
-        // Propagate incoming status
-        status_forwards_next = status_forwards_in;
+            op::SUB:
+                alu_result = operand_a - operand_b;
 
+            op::SLL, op::SLLI:
+                alu_result = operand_a << operand_b[4:0];
 
-        // ------------------------------------------------------
-        // Instruction execution
-        // ------------------------------------------------------
+            op::SLT, op::SLTI:
+                alu_result = $signed(operand_a) < $signed(operand_b) ? 32'd1 : 32'd0;
 
-        case (instruction_in.op)
+            op::SLTU, op::SLTIU:
+                alu_result = operand_a < operand_b ? 32'd1 : 32'd0;
 
-            // Upper immediate instructions
+            op::XOR, op::XORI:
+                alu_result = operand_a ^ operand_b;
+
+            op::SRL, op::SRLI:
+                alu_result = operand_a >> operand_b[4:0];
+
+            op::SRA, op::SRAI:
+                alu_result = $signed(operand_a) >>> operand_b[4:0];
+
+            op::OR, op::ORI:
+                alu_result = operand_a | operand_b;
+
+            op::AND, op::ANDI:
+                alu_result = operand_a & operand_b;
+
             op::LUI:
                 alu_result = instruction_in.immediate;
 
             op::AUIPC:
                 alu_result = program_counter_in + instruction_in.immediate;
 
+            // BRANCH
+            op::BEQ:  branch_taken = (operand_a == operand_b);
+            op::BNE:  branch_taken = (operand_a != operand_b);
+            op::BLT:  branch_taken = ($signed(operand_a) < $signed(operand_b));
+            op::BGE:  branch_taken = ($signed(operand_a) >= $signed(operand_b));
+            op::BLTU: branch_taken = (operand_a < operand_b);
+            op::BGEU: branch_taken = (operand_a >= operand_b);
 
-            // --------------------------------------------------
-            // Jump instructions
-            // --------------------------------------------------
-
+            // JUMP
             op::JAL: begin
                 alu_result   = program_counter_in + 4;
+                jump_taken   = 1'b1;
                 jump_address = program_counter_in + instruction_in.immediate;
-                next_pc      = jump_address;
-                branch_taken = 1;
             end
 
             op::JALR: begin
                 alu_result   = program_counter_in + 4;
-                jump_address = (rs1_data_in + instruction_in.immediate) & ~32'b1;
-                next_pc      = jump_address;
-                branch_taken = 1;
+                jump_taken   = 1'b1;
+                jump_address = (operand_a + operand_b) & ~32'h1;
             end
-
-
-            // --------------------------------------------------
-            // Branch instructions
-            // --------------------------------------------------
-
-            op::BEQ:  branch_taken = (rs1_data_in == rs2_data_in);
-            op::BNE:  branch_taken = (rs1_data_in != rs2_data_in);
-
-            op::BLT:  branch_taken = ($signed(rs1_data_in) <  $signed(rs2_data_in));
-            op::BGE:  branch_taken = ($signed(rs1_data_in) >= $signed(rs2_data_in));
-
-            op::BLTU: branch_taken = (rs1_data_in < rs2_data_in);
-            op::BGEU: branch_taken = (rs1_data_in >= rs2_data_in);
-
-
-            // --------------------------------------------------
-            // Load instructions (compute address)
-            // --------------------------------------------------
-
-            op::LB,op::LH,op::LW,op::LBU,op::LHU:
-                alu_result = rs1_data_in + instruction_in.immediate;
-
-
-            // --------------------------------------------------
-            // Store instructions
-            // --------------------------------------------------
-
-            op::SB,op::SH,op::SW: begin
-                alu_result = rs1_data_in + instruction_in.immediate;
-                source_data = rs2_data_in;
-            end
-
-
-            // --------------------------------------------------
-            // Immediate ALU operations
-            // --------------------------------------------------
-
-            op::ADDI:  alu_result = rs1_data_in + instruction_in.immediate;
-            op::SLTI:  alu_result = ($signed(rs1_data_in) < $signed(instruction_in.immediate));
-            op::SLTIU: alu_result = (rs1_data_in < instruction_in.immediate);
-
-            op::XORI:  alu_result = rs1_data_in ^ instruction_in.immediate;
-            op::ORI:   alu_result = rs1_data_in | instruction_in.immediate;
-            op::ANDI:  alu_result = rs1_data_in & instruction_in.immediate;
-
-            op::SLLI:  alu_result = rs1_data_in << instruction_in.immediate[4:0];
-            op::SRLI:  alu_result = rs1_data_in >> instruction_in.immediate[4:0];
-            op::SRAI:  alu_result = $signed(rs1_data_in) >>> instruction_in.immediate[4:0];
-
-
-            // --------------------------------------------------
-            // Register-register ALU operations
-            // --------------------------------------------------
-
-            op::ADD:  alu_result = rs1_data_in + rs2_data_in;
-            op::SUB:  alu_result = rs1_data_in - rs2_data_in;
-
-            op::SLL:  alu_result = rs1_data_in << rs2_data_in[4:0];
-            op::SLT:  alu_result = ($signed(rs1_data_in) < $signed(rs2_data_in));
-            op::SLTU: alu_result = (rs1_data_in < rs2_data_in);
-
-            op::XOR:  alu_result = rs1_data_in ^ rs2_data_in;
-
-            op::SRL:  alu_result = rs1_data_in >> rs2_data_in[4:0];
-            op::SRA:  alu_result = $signed(rs1_data_in) >>> rs2_data_in[4:0];
-
-            op::OR:   alu_result = rs1_data_in | rs2_data_in;
-            op::AND:  alu_result = rs1_data_in & rs2_data_in;
-
-
-            // --------------------------------------------------
-            // CSR instructions
-            // --------------------------------------------------
-
-            op::CSRRW,op::CSRRS,op::CSRRC:
-                source_data = rs1_data_in;
-
-            op::CSRRWI,op::CSRRSI,op::CSRRCI:
-                source_data = instruction_in.immediate; // Use either one or the other!
-                // source_data = {27'b0, instruction_in.rs1_address};
 
             default: ;
-
         endcase
 
-
-        // ------------------------------------------------------
-        // Branch target calculation
-        // ------------------------------------------------------
-
-        if (instruction_in.op inside {
-            op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU
-        }) 
-        begin
-            if (branch_taken) begin
-                jump_address = program_counter_in + instruction_in.immediate;
-                next_pc      = jump_address;
-            end
+        if (branch_taken) begin
+            jump_address = program_counter_in + instruction_in.immediate;
+            jump_taken   = 1'b1;
         end
 
-
-        // ------------------------------------------------------
-        // Misaligned jump detection
-        // RISC-V requires instruction address alignment
-        // ------------------------------------------------------
-
-        if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) &&
-            jump_address[1:0] != 2'b00)
-                status_forwards_next = pipeline_status::FETCH_MISALIGNED;
-
-
-        // ------------------------------------------------------
-        // Local backwards control
-        // ------------------------------------------------------
-
-        local_backwards_status =
-            (branch_taken || instruction_in.op inside {op::JAL,op::JALR})
-            ? pipeline_status::JUMP : pipeline_status::READY;
-
+        if (jump_taken) begin
+            next_pc = jump_address;
+        end
     end
 
 
-    // ==========================================================
-    // Backwards Pipeline Control
-    // Pure combinational logic
-    // **Later stages have priority**
-    // ==========================================================
+    // ============================================================
+    // PIPELINE CONTROL
+    // ============================================================
 
     always_comb begin
-        // Default ready status
-        status_backwards_out = pipeline_status::READY;
+        status_forwards_next = status_forwards_in;
+        local_backwards_status = pipeline_status::READY;
 
-        if (status_backwards_in != pipeline_status::READY) begin
-
-            // Later stage overrides this stage!
-            status_backwards_out       = status_backwards_in; // STALL from MEM or JUMP from WB
-            jump_address_backwards_out = jump_address_backwards_in;
-
-        end else begin
-
-            status_backwards_out       = local_backwards_status;
-            jump_address_backwards_out = jump_address;
-
+        // Detect jump/branch
+        if (pipeline_forwards_valid && jump_taken) begin
+            local_backwards_status = pipeline_status::JUMP;
+            
+            // Detect fetch misalignment on jump
+            if (jump_address[1:0] != 2'b00)
+                status_forwards_next = pipeline_status::FETCH_MISALIGNED;
         end
 
+        // Detect illegal instructions passed from Decode (if any)
+        if (pipeline_forwards_valid && instruction_in.op == op::ILLEGAL)
+            status_forwards_next = pipeline_status::ILLEGAL_INSTRUCTION;
+
+        // Backward signals
+        status_backwards_out = status_backwards_in;
+        jump_address_backwards_out = jump_address_backwards_in;
+
+        if (status_backwards_in == pipeline_status::READY) begin
+            if (local_backwards_status == pipeline_status::JUMP) begin
+                status_backwards_out = pipeline_status::JUMP;
+                jump_address_backwards_out = jump_address;
+            end
+        end
     end
 
 
-    // ==========================================================
-    // Pipeline Registers
-    // Update only when pipeline not stalled
-    // ==========================================================
+    // ============================================================
+    // PIPELINE REGISTERS
+    // ============================================================
 
     always_ff @(posedge clk) begin
-
         if (rst) begin
-            instruction_reg_out          <= instruction::NOP;
-            program_counter_reg_out      <= 32'b0;
+            instruction_reg_out     <= instruction::NOP;
+            program_counter_reg_out <= 32'b0;
             next_program_counter_reg_out <= 32'b0;
-
-            rd_data_reg_out              <= 32'b0;
-            source_data_reg_out          <= 32'b0;
-
-            status_forwards_out          <= pipeline_status::BUBBLE;
-
+            rd_data_reg_out         <= 32'b0;
+            source_data_reg_out     <= 32'b0;
+            status_forwards_out     <= pipeline_status::BUBBLE;
         end 
         else if (status_backwards_in == pipeline_status::JUMP) begin
             status_forwards_out <= pipeline_status::BUBBLE;
+            instruction_reg_out <= instruction::NOP;
         end
         else if (status_backwards_in == pipeline_status::STALL) begin
-            // Freeze pipeline registers
+            // Hold
         end
-        else if (pipeline_forwards_valid) begin
+        else begin
+            // Normal transition
             instruction_reg_out          <= instruction_in;
             program_counter_reg_out      <= program_counter_in;
             next_program_counter_reg_out <= next_pc;
-
+            source_data_reg_out          <= (instruction_in.op inside {op::CSRRW, op::CSRRS, op::CSRRC, op::CSRRWI, op::CSRRSI, op::CSRRCI}) ? operand_a : rs2_data_in;
             rd_data_reg_out              <= alu_result;
-            source_data_reg_out          <= source_data;
-            
-            // status_forwards_in {VALID, FETCH_MISALIGNED}
             status_forwards_out          <= status_forwards_next;
 
-            // exceptions
-            if (instruction_in.op == op::ECALL)
-                status_forwards_out <= pipeline_status::ECALL;
-
-            if (instruction_in.op == op::EBREAK)
-                status_forwards_out <= pipeline_status::EBREAK;
-
-        end else begin
-            // status_forwards_in either {BUBBLE, FETCH_FAULT, ILLEGAL_INSTRUCTION}
-            status_forwards_out <= status_forwards_in;
-            program_counter_reg_out <= program_counter_in;
+            // Handle ECALL/EBREAK specifically if they are VALID
+            if (pipeline_forwards_valid) begin
+                if (instruction_in.op == op::ECALL)
+                    status_forwards_out <= pipeline_status::ECALL;
+                else if (instruction_in.op == op::EBREAK)
+                    status_forwards_out <= pipeline_status::EBREAK;
+            end
         end
-
     end
 
 
-    // ==========================================================
-    // Forwarding logic
-    // Provides ALU results to earlier pipeline stages
-    // ==========================================================
+    // ============================================================
+    // FORWARDING
+    // ============================================================
 
-    assign forwarding_out.data_valid = !(instruction_in.op inside {
-        op::SB,op::SH,op::SW,
-        op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU
-    }) && pipeline_forwards_valid;
-
-    assign forwarding_out.data    = alu_result;
-    assign forwarding_out.address = instruction_in.rd_address;
+    always_comb begin
+        forwarding_out.address = instruction_in.rd_address;
+        forwarding_out.data    = alu_result;
+        
+        // CSR instructions cannot be forwarded from EXE/MEM because they depend on CSR state in WB
+        forwarding_out.data_valid = 
+            pipeline_forwards_valid &&
+            !(instruction_in.op inside {
+                op::CSRRW, op::CSRRS, op::CSRRC, 
+                op::CSRRWI, op::CSRRSI, op::CSRRCI,
+                op::LB, op::LH, op::LW, op::LBU, op::LHU
+            });
+    end
 
 endmodule
