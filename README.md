@@ -10,7 +10,8 @@ We gratefully acknowledge and credit the original authors for making this resour
 
 ---
 
-## 🇧🇩 Alpha Science Lab — Independence Day Initiative
+## Alpha Science Lab
+### Independence Day Initiative - March 26
 
 On the occasion of Independence Day March 26, **Alpha Science Lab, Mymensingh Engineering College**, humbly shares a milestone from its ongoing journey in hardware design and engineering.
 
