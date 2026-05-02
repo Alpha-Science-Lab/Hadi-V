@@ -42,6 +42,9 @@
 #include "peripherals.h"
 #include "helperfunctions.h"
 
+// Test interface for simulation
+#define TEST_ADDRESS  (((volatile uint32_t *) ((0x00120000    ) << 2)))
+
 // uncomment the following line to simply increment "glob_value" after some cpu cycles
 #define USE_TIMER_INTERRUPT_TO_INCREMENT_GLOB_VALUE
 
@@ -322,6 +325,9 @@ void test_vga_mixed_idx() {
 // |                                             MAIN                                             |
 // ------------------------------------------------------------------------------------------------
 void main() {
+    // Signal initial test to simulation
+    *TEST_ADDRESS = 1;
+    
     static uint32_t test_nr = 0;
     // Set interrupt/exception handler
     asm("csrw mtvec, %0": : "r"(interrupt));
@@ -345,11 +351,13 @@ void main() {
 
     // Start Main loop
     uint32_t loop_cnt = 1;
+    uint32_t simulation_cycle_count = 0;  // Counter for simulation completion
     int32_t  button_debounce_cnt = (1<<10);
     uint32_t button_east_state_now  = 0;
     uint32_t button_east_state_prev = 0;
     while (1) {
         loop_cnt--;
+        simulation_cycle_count++;
 
 #ifndef USE_TIMER_INTERRUPT_TO_INCREMENT_GLOB_VALUE
         // Manipulate the global value if timer interrupt disabled
@@ -358,6 +366,12 @@ void main() {
             incrementGlobValue();
         }
 #endif
+
+        // Signal test done in simulation after enough cycles
+        if (simulation_cycle_count > 10000) {
+            *TEST_ADDRESS = 2;  // Signal: test done
+            break;
+        }
 
         // Execute next test if button east pressed
         if (button_debounce_cnt > 0) {

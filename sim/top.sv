@@ -71,8 +71,8 @@ module top;
         $dumpfile("sim.fst");
         $dumpvars;
 
-        // Run for 10000 cycles max
-        repeat (100000) @(negedge clk);
+        // Run for 1000000 cycles max
+        repeat (1000000) @(negedge clk);
 
         // Stop simulation
         $display("\033[0;33m"); // color_orange
