@@ -1,5 +1,5 @@
 /* File: execute_stage.sv
- * Brought up by Md. Jubayer Fahad
+ * Brought up by Md. Jubaer Fahad
  * Organization: Alpha Science Lab
  * March 2026
  *
@@ -23,8 +23,8 @@
  *   - Must propagate immediately without delay
  *   - Later pipeline stages have priority
  */
-
-module execute_stage (
+ 
+ module execute_stage (
 
     // Clock / Reset
     input logic clk,
@@ -81,7 +81,6 @@ module execute_stage (
     output logic [31:0] jump_address_backwards_out
 );
 
-
     // ==========================================================
     // Internal Signals
     // ==========================================================
@@ -99,8 +98,7 @@ module execute_stage (
 
     // Status forwards is vaild or not
     logic pipeline_forwards_valid;
-    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID) || (status_forwards_in == pipeline_status::ECALL)
-                                    || (status_forwards_in == pipeline_status::EBREAK);
+    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
 
     // ==========================================================
@@ -144,14 +142,12 @@ module execute_stage (
                 alu_result   = program_counter_in + 4;
                 jump_address = program_counter_in + instruction_in.immediate;
                 next_pc      = jump_address;
-                branch_taken = 1;
             end
 
             op::JALR: begin
                 alu_result   = program_counter_in + 4;
                 jump_address = (rs1_data_in + instruction_in.immediate) & ~32'b1;
                 next_pc      = jump_address;
-                branch_taken = 1;
             end
 
 
@@ -264,7 +260,6 @@ module execute_stage (
             jump_address[1:0] != 2'b00)
                 status_forwards_next = pipeline_status::FETCH_MISALIGNED;
 
-
         // ------------------------------------------------------
         // Local backwards control
         // ------------------------------------------------------
@@ -337,17 +332,12 @@ module execute_stage (
             // status_forwards_in {VALID, FETCH_MISALIGNED}
             status_forwards_out          <= status_forwards_next;
 
-            // exceptions
-            if (instruction_in.op == op::ECALL)
-                status_forwards_out <= pipeline_status::ECALL;
-
-            if (instruction_in.op == op::EBREAK)
-                status_forwards_out <= pipeline_status::EBREAK;
-
         end else begin
-            // status_forwards_in either {BUBBLE, FETCH_FAULT, ILLEGAL_INSTRUCTION}
+            // status_forwards_in either {BUBBLE, FETCH_FAULT,
+            // ILLEGAL_INSTRUCTION, ECALL, EBREAK}
             status_forwards_out <= status_forwards_in;
             program_counter_reg_out <= program_counter_in;
+            next_program_counter_reg_out <= next_pc;
         end
 
     end
@@ -358,12 +348,18 @@ module execute_stage (
     // Provides ALU results to earlier pipeline stages
     // ==========================================================
 
-    assign forwarding_out.data_valid = !(instruction_in.op inside {
+    assign forwarding_out.data_valid = 
+    !(instruction_in.op inside {
+        op::LB,op::LH,op::LW,op::LBU,op::LHU,
         op::SB,op::SH,op::SW,
-        op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU
+        op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU,
+        op::MRET,op::FENCE_I,
+        op::CSRRW,op::CSRRS,op::CSRRC,
+        op::CSRRWI, op::CSRRSI, op::CSRRCI
     }) && pipeline_forwards_valid;
 
     assign forwarding_out.data    = alu_result;
     assign forwarding_out.address = instruction_in.rd_address;
 
+    // ref_execute_stage golden(.*);
 endmodule

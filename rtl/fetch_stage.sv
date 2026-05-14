@@ -26,7 +26,7 @@ module fetch_stage (
     logic [31:0] pc;
 
     // Wishbone control signals
-    assign wb.cyc      = 1'b1;
+    assign wb.cyc      = !rst && 1'b1;
     assign wb.stb      = 1'b1;
     assign wb.we       = 1'b0;          // Read operation only
     assign wb.sel      = 4'b1111;       // Word access
@@ -73,9 +73,6 @@ module fetch_stage (
 
             else if (status_backwards_in == pipeline_status::STALL) begin
                 // HOLD previous value
-                instruction_reg_out     <= instruction_reg_out;
-                program_counter_reg_out <= program_counter_reg_out;
-                status_forwards_out     <= status_forwards_out;
             end
 
             else if (wb.err) begin

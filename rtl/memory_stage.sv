@@ -19,7 +19,7 @@
  * reads or writes may have side effects.
  */
 
-module memory_stage (
+ module memory_stage (
     input logic clk,
     input logic rst,
 
@@ -69,10 +69,7 @@ module memory_stage (
     //============================================================
 
     logic pipeline_forwards_valid;
-    assign pipeline_forwards_valid =
-        (status_forwards_in == pipeline_status::VALID) ||
-        (status_forwards_in == pipeline_status::ECALL) ||
-        (status_forwards_in == pipeline_status::EBREAK);
+    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
     logic load_op;
     logic store_op;
@@ -115,8 +112,7 @@ module memory_stage (
             op::LW, op::SW:
                 misaligned = |address[1:0];
 
-            default:
-                misaligned = 1'b0;
+            default:;
         endcase
     end
 
@@ -124,7 +120,8 @@ module memory_stage (
     // Wishbone transaction controller
     //============================================================
 
-    assign mem_op = (load_op || store_op) && pipeline_forwards_valid && !misaligned;
+    assign mem_op = !rst && (load_op || store_op) && pipeline_forwards_valid
+            && !misaligned && (status_backwards_in == pipeline_status::READY);
 
     // Always drive bus when memory op is active
     assign wb.cyc = mem_op;
@@ -141,13 +138,15 @@ module memory_stage (
         ((instruction_in.op == op::LH)  || (instruction_in.op == op::LHU) ||
         (instruction_in.op == op::SH)) ? (address[1] ? 4'b1100 : 4'b0011) :
 
-        4'b1111;
+        ((instruction_in.op == op::LW) || (instruction_in.op == op::SW)) ?
+
+        4'b1111 : 4'b0000;
 
     // Write data alignment
     assign wb.dat_mosi =
         (instruction_in.op == op::SB) ? (source_data_in << (8 * address[1:0])) :
         (instruction_in.op == op::SH) ? (source_data_in << (16 * address[1])) :
-        source_data_in;
+        (instruction_in.op == op::SW) ? source_data_in : 32'h0;
 
 
     //============================================================
@@ -212,7 +211,7 @@ module memory_stage (
             status_backwards_out = status_backwards_in; // Essentially a JUMP
         
         // Later stages has higher precedence
-        else if (mem_op && !wb.ack)
+        else if (mem_op && !(wb.ack || wb.err))
             status_backwards_out = pipeline_status::STALL;
 
     end
@@ -249,13 +248,10 @@ module memory_stage (
             program_counter_reg_out <= program_counter_in;
             next_program_counter_reg_out <= next_program_counter_in;
 
+            rd_data_reg_out <= rd_data_in;
             source_data_reg_out <= source_data_in;
-
-            if (load_op && wb.ack && !wb.err)
-                rd_data_reg_out <= load_data;
-            else if (!load_op)
-                rd_data_reg_out <= rd_data_in;
-
+            
+            status_forwards_out <= pipeline_status::VALID;
             
             if (misaligned && load_op)
                 status_forwards_out <= pipeline_status::LOAD_MISALIGNED;
@@ -269,26 +265,19 @@ module memory_stage (
             else if (mem_op && store_op && wb.err)
                 status_forwards_out <= pipeline_status::STORE_FAULT;
 
-            // should be placed after faults
-            else if (mem_op && !wb.ack)
-                status_forwards_out <= pipeline_status::BUBBLE;
-
-            else begin
-                status_forwards_out <= pipeline_status::VALID;
-                // exceptions
-                if (instruction_in.op == op::ECALL)
-                    status_forwards_out <= pipeline_status::ECALL;
-
-                if (instruction_in.op == op::EBREAK)
-                    status_forwards_out <= pipeline_status::EBREAK;
+            else begin                                    
+                if (mem_op && !(wb.ack || wb.err))
+                    status_forwards_out <= pipeline_status::BUBBLE;
+                else if (load_op && wb.ack && !wb.err)
+                    rd_data_reg_out <= load_data;
             end
-
         end
         else begin
-            /* status_forwards_in either {BUBBLE, FETCH_MISALIGNED, 
-                    FETCH_FAULT, ILLEGAL_INSTRUCTION}*/
+            // status_forwards_in either {BUBBLE, FETCH_FAULT,
+            // ILLEGAL_INSTRUCTION, ECALL, EBREAK, FETCH_MISALIGNED}
             status_forwards_out <= status_forwards_in;
             program_counter_reg_out <= program_counter_in;
+            next_program_counter_reg_out <= next_program_counter_in;
         end
 
     end
@@ -302,11 +291,15 @@ module memory_stage (
     assign forwarding_out.data = (load_op && wb.ack && !wb.err) 
             ? load_data : rd_data_in;
 
-    assign forwarding_out.data_valid = 
-            pipeline_forwards_valid &&
-            (
-                (!load_op && !store_op) ||
-                (load_op && wb.ack && !wb.err)
-            );
+    assign forwarding_out.data_valid = pipeline_forwards_valid &&
+        (!(instruction_in.op inside {
+            op::LB, op::LH, op::LW, op::LBU, op::LHU,
+            op::SB,op::SH,op::SW,
+            op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU,
+            op::MRET,op::FENCE_I,
+            op::CSRRW,op::CSRRS,op::CSRRC,
+            op::CSRRWI, op::CSRRSI, op::CSRRCI
+        }) || (load_op && !misaligned && wb.ack && !wb.err));
 
+    // ref_memory_stage golden(.*);
 endmodule
