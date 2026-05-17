@@ -95,6 +95,7 @@
     // Pipeline control helpers
     pipeline_status::forwards_t  status_forwards_next;
     pipeline_status::backwards_t local_backwards_status;
+    logic forwarding_address_valid;
 
     // Status forwards is vaild or not
     logic pipeline_forwards_valid;
@@ -256,7 +257,8 @@
         // RISC-V requires instruction address alignment
         // ------------------------------------------------------
 
-        if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) &&
+        if (pipeline_forwards_valid &&
+            (branch_taken || instruction_in.op inside {op::JAL,op::JALR}) &&
             jump_address[1:0] != 2'b00)
                 status_forwards_next = pipeline_status::FETCH_MISALIGNED;
 
@@ -265,6 +267,7 @@
         // ------------------------------------------------------
 
         local_backwards_status =
+            pipeline_forwards_valid &&
             (branch_taken || instruction_in.op inside {op::JAL,op::JALR})
             ? pipeline_status::JUMP : pipeline_status::READY;
 
@@ -348,18 +351,23 @@
     // Provides ALU results to earlier pipeline stages
     // ==========================================================
 
-    assign forwarding_out.data_valid = 
-    !(instruction_in.op inside {
-        op::LB,op::LH,op::LW,op::LBU,op::LHU,
+    assign forwarding_address_valid =
+    pipeline_forwards_valid && !(instruction_in.op inside {
         op::SB,op::SH,op::SW,
         op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU,
-        op::MRET,op::FENCE_I,
+        op::MRET,op::FENCE_I
+    });
+
+    assign forwarding_out.data_valid =
+    forwarding_address_valid && !(instruction_in.op inside {
+        op::LB,op::LH,op::LW,op::LBU,op::LHU,
         op::CSRRW,op::CSRRS,op::CSRRC,
         op::CSRRWI, op::CSRRSI, op::CSRRCI
-    }) && pipeline_forwards_valid;
+    });
 
     assign forwarding_out.data    = alu_result;
-    assign forwarding_out.address = instruction_in.rd_address;
+    assign forwarding_out.address = forwarding_address_valid
+        ? instruction_in.rd_address : 5'b0;
 
     // ref_execute_stage golden(.*);
 endmodule

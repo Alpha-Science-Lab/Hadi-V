@@ -251,11 +251,11 @@
          status_backwards_out = pipeline_status::JUMP;
          jump_address_backwards_out = mtvec;
      end
-     else if (mret) begin
+     else if (mret && valid) begin
          status_backwards_out = pipeline_status::JUMP;
          jump_address_backwards_out = mepc;
      end
-     else if (instruction_in.op == op::FENCE_I) begin
+     else if (instruction_in.op == op::FENCE_I && valid) begin
          status_backwards_out = pipeline_status::JUMP;
          jump_address_backwards_out = next_program_counter_in;
      end
@@ -284,14 +284,15 @@
  // FORWARDING
  // ================================================================
 
- always_comb begin
-     forwarding_out.address = instruction_in.rd_address;
+always_comb begin
      forwarding_out.data = wb_data;
      forwarding_out.data_valid = valid && !(instruction_in.op inside {
          op::SB,op::SH,op::SW,
          op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU,
          op::MRET,op::FENCE_I
      });
+     forwarding_out.address = forwarding_out.data_valid
+         ? instruction_in.rd_address : 5'b0;
  end
 
  // ref_writeback_stage golden(.*);
