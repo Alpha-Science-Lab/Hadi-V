@@ -22,7 +22,7 @@
  *
  */
 
-module decode_stage (
+ module decode_stage (
     input logic clk,
     input logic rst,
 
@@ -316,7 +316,7 @@ module decode_stage (
 
         else begin
             // Propagate status from previous stage
-            // Say there was pipeline_status::FETCH_FAULT in IF stage
+            // Say there was FETCH_FAULT in IF stage
             next_status_forwards = status_forwards_in;
         end
 
@@ -350,7 +350,8 @@ module decode_stage (
 
                 if (next_status_forwards == pipeline_status::VALID) begin
                     // Transfer decoded instruction
-                    instruction_reg_out <= decoded_instruction;
+                    instruction_reg_out <= decoded_instruction inside {op::FENCE, op::WFI}? 
+                        instruction::NOP : decoded_instruction;
                     // Transfer PC
                     program_counter_reg_out <= program_counter_in;
                     // Transfer operand values
@@ -366,7 +367,7 @@ module decode_stage (
                 end
 
             end
-            // else: HOLD state (no assignment)
+            // else HOLD state (no assignment)
         end
     end
 
