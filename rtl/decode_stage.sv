@@ -93,7 +93,7 @@
     logic [31:0] rs2_data;
 
     // Indicates a data hazard requiring pipeline stall
-    logic stall_forwarding;
+    logic data_fwd_invalid;
 
     // Raw register file outputs
     logic [31:0] rs1_data_rf;
@@ -169,43 +169,42 @@
 
     always_comb begin
 
-        stall_forwarding = 1'b0;
+        data_fwd_invalid = 1'b0;
         // Default values come from register file
         rs1_data = rs1_data_rf;
         rs2_data = rs2_data_rf;
 
         //---------------- RS1 Forwarding ----------------
 
-        // Register x0 is always zero -> never forwarded
-        if (decoded_instruction.rs1_address != 0) begin
+        if (pipeline_forwards_valid) begin
 
             // Check Execute stage
             if (exe_forwarding_in.address == decoded_instruction.rs1_address) begin
-                if(pipeline_forwards_valid) begin
+                if(decoded_instruction.rs1_address != 0) begin
                     if (exe_forwarding_in.data_valid)
                         rs1_data = exe_forwarding_in.data;
                     else
-                        stall_forwarding = 1'b1;
+                        data_fwd_invalid = 1'b1;
                 end
             end
 
             // Check Memory stage
             else if (mem_forwarding_in.address == decoded_instruction.rs1_address) begin
-                if(pipeline_forwards_valid) begin
+                if(decoded_instruction.rs1_address != 0) begin
                     if (mem_forwarding_in.data_valid)
                         rs1_data = mem_forwarding_in.data;
                     else
-                        stall_forwarding = 1'b1;
+                        data_fwd_invalid = 1'b1;
                 end
             end
 
             // Check Writeback stage
             else if (wb_forwarding_in.address == decoded_instruction.rs1_address) begin
-                if(pipeline_forwards_valid) begin
+                if(decoded_instruction.rs1_address != 0) begin
                     if (wb_forwarding_in.data_valid)
                         rs1_data = wb_forwarding_in.data;
                     else 
-                        stall_forwarding = 1'b1;
+                        data_fwd_invalid = 1'b1;
                 end
             end
         end
@@ -213,32 +212,32 @@
 
         //---------------- RS2 Forwarding ----------------
 
-        if (decoded_instruction.rs2_address != 0) begin
+        if (pipeline_forwards_valid) begin
 
             if (exe_forwarding_in.address == decoded_instruction.rs2_address) begin
-                if(pipeline_forwards_valid) begin
+                if(decoded_instruction.rs2_address != 0) begin
                     if (exe_forwarding_in.data_valid)
                         rs2_data = exe_forwarding_in.data;
                     else
-                        stall_forwarding = 1'b1;
+                        data_fwd_invalid = 1'b1;
                 end
             end
 
             else if (mem_forwarding_in.address == decoded_instruction.rs2_address) begin
-                if(pipeline_forwards_valid) begin
+                if(decoded_instruction.rs2_address != 0) begin
                     if (mem_forwarding_in.data_valid)
                         rs2_data = mem_forwarding_in.data;
                     else
-                        stall_forwarding = 1'b1;
+                        data_fwd_invalid = 1'b1;
                 end
             end
 
             else if (wb_forwarding_in.address == decoded_instruction.rs2_address) begin
-                if(pipeline_forwards_valid) begin
+                if(decoded_instruction.rs2_address != 0) begin
                     if (wb_forwarding_in.data_valid)
                         rs2_data = wb_forwarding_in.data;
                     else
-                        stall_forwarding = 1'b1;
+                        data_fwd_invalid = 1'b1;
                 end
             end
         end
@@ -270,8 +269,8 @@
         else if (status_backwards_in == pipeline_status::STALL)
             status_backwards_out = pipeline_status::STALL;
         
-        else if (stall_forwarding)
-            status_backwards_out = pipeline_status::STALL; 
+        else if (data_fwd_invalid)
+            status_backwards_out = pipeline_status::STALL;
         
     end
 
@@ -295,7 +294,7 @@
         if (status_backwards_in == pipeline_status::JUMP)
             next_status_forwards = pipeline_status::BUBBLE;
         
-        else if (stall_forwarding)
+        else if (data_fwd_invalid)
             next_status_forwards = pipeline_status::BUBBLE;
         
         else if (pipeline_forwards_valid) begin

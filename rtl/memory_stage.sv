@@ -79,7 +79,8 @@
     logic misaligned;
 
     logic [31:0] load_data;
-    logic forwarding_address_valid;
+
+    bit writes_rd, bypass_ready;
 
     //============================================================
     // Instruction type detection
@@ -287,24 +288,25 @@
     // Forwarding generation
     //============================================================
 
-    assign forwarding_address_valid =
-        pipeline_forwards_valid && !(instruction_in.op inside {
-            op::SB,op::SH,op::SW,
-            op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU,
-            op::MRET,op::FENCE_I
-        });
+    assign writes_rd = pipeline_forwards_valid && !(instruction_in.op inside {
+        op::SB, op::SH, op::SW,
+        op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU,
+        op::MRET
+    }); // If doesn't write, not to be forwarded
 
-    assign forwarding_out.address = forwarding_address_valid
-            ? instruction_in.rd_address : 5'b0;
+    assign bypass_ready = pipeline_forwards_valid && !(instruction_in.op inside {
+        op::LB, op::LH, op::LW, op::LBU, op::LHU,
+        op::CSRRW, op::CSRRS, op::CSRRC,
+        op::CSRRWI, op::CSRRSI, op::CSRRCI
+    }) // Not ready for forwarding, STALL decode
+    || (load_op && !misaligned && wb.ack && !wb.err);
+    
+    assign forwarding_out.data_valid = bypass_ready;
     
     assign forwarding_out.data = (load_op && wb.ack && !wb.err) 
             ? load_data : rd_data_in;
 
-    assign forwarding_out.data_valid = forwarding_address_valid &&
-        !(instruction_in.op inside {
-            op::CSRRW,op::CSRRS,op::CSRRC,
-            op::CSRRWI, op::CSRRSI, op::CSRRCI
-        }) && (!load_op || (!misaligned && wb.ack && !wb.err));
+    assign forwarding_out.address = writes_rd ? instruction_in.rd_address : 5'b0;
 
     // ref_memory_stage golden(.*);
 endmodule
