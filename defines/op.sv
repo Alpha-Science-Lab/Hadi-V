@@ -3,65 +3,83 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: op.sv
+ *
+ * Extended(RV32M) by Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
  */
-
 
 
 /*verilator lint_off UNUSED*/
 
-package op;
-    typedef enum logic [5:0] {
-        LUI,
-        AUIPC,
-        JAL,
-        JALR,
-        BEQ,
-        BNE,
-        BLT,
-        BGE,
-        BLTU,
-        BGEU,
-        LB,
-        LH,
-        LW,
-        LBU,
-        LHU,
-        SB,
-        SH,
-        SW,
-        ADDI,
-        SLTI,
-        SLTIU,
-        XORI,
-        ORI,
-        ANDI,
-        SLLI,
-        SRLI,
-        SRAI,
-        ADD,
-        SUB,
-        SLL,
-        SLT,
-        SLTU,
-        XOR,
-        SRL,
-        SRA,
-        OR,
-        AND,
-        FENCE,
-        FENCE_I,
-        ECALL,
-        EBREAK,
-        CSRRW,
-        CSRRS,
-        CSRRC,
-        CSRRWI,
-        CSRRSI,
-        CSRRCI,
-        MRET,
-        WFI,
-        ILLEGAL
-    } t;
+ package op;
+ typedef enum logic [5:0] {
+     LUI,
+     AUIPC,
+     JAL,
+     JALR,
+     BEQ,
+     BNE,
+     BLT,
+     BGE,
+     BLTU,
+     BGEU,
+     LB,
+     LH,
+     LW,
+     LBU,
+     LHU,
+     SB,
+     SH,
+     SW,
+     ADDI,
+     SLTI,
+     SLTIU,
+     XORI,
+     ORI,
+     ANDI,
+     SLLI,
+     SRLI,
+     SRAI,
+     ADD,
+     SUB,
+     SLL,
+     SLT,
+     SLTU,
+     XOR,
+     SRL,
+     SRA,
+     OR,
+     AND,
+
+     // RV32M
+     MUL,
+     MULH,
+     MULHSU,
+     MULHU,
+     DIV,
+     DIVU,
+     REM,
+     REMU,
+     // ~RV32M
+
+     FENCE,
+     FENCE_I,
+
+     ECALL,
+     EBREAK,
+
+     CSRRW,
+     CSRRS,
+     CSRRC,
+     CSRRWI,
+     CSRRSI,
+     CSRRCI,
+     
+     MRET,
+     WFI,
+
+     ILLEGAL
+ } t;
 endpackage
 
 /*verilator lint_on UNUSED*/
