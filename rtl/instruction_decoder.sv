@@ -1,5 +1,7 @@
 /* File: instruction_decoder.sv
- * Brought up by Md. Mosharrof Hossain
+ * Brought up by Md Mosharraf Hossain 
+ * Extended(M-extension) by Md. Jannatul Nayem
+ *
  * Organization: Alpha Science Lab
  * March 2026
 */
@@ -323,33 +325,81 @@ module instruction_decoder (
                 case (funct3)
 
                     3'b000: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::ADD;
-                        if (funct7 == 7'b0100000) instruction_out.op = op::SUB;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::ADD;
+
+                        else if (funct7 == 7'b0100000)
+                            instruction_out.op = op::SUB;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::MUL;
                     end
 
                     3'b001: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::SLL;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::SLL;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::MULH;
                     end
+
                     3'b010: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::SLT;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::SLT;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::MULHSU;
                     end
+
                     3'b011: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::SLTU;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::SLTU;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::MULHU;
                     end
+
                     3'b100: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::XOR;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::XOR;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::DIV;
                     end
 
                     3'b101: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::SRL;
-                        if (funct7 == 7'b0100000) instruction_out.op = op::SRA;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::SRL;
+
+                        else if (funct7 == 7'b0100000)
+                            instruction_out.op = op::SRA;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::DIVU;
                     end
 
                     3'b110: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::OR;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::OR;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::REM;
                     end
+
                     3'b111: begin
-                        if (funct7 == 7'b0000000) instruction_out.op = op::AND;
+                        if (funct7 == 7'b0000000)
+                            instruction_out.op = op::AND;
+
+                        // RV32M
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op::REMU;
                     end
 
                 endcase

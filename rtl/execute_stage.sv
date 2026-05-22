@@ -102,10 +102,19 @@
 
     bit writes_rd, bypass_ready;
 
+    // Multiplication temp registers
+    logic signed [63:0] mul_ss;
+    logic signed [63:0] mul_su;
+    logic        [63:0] mul_uu;
+
     // ==========================================================
     // ALU + Control Logic
     // Pure combinational logic
     // ==========================================================
+
+    assign mul_ss = $signed(rs1_data_in) * $signed(rs2_data_in);
+    assign mul_su = $signed(rs1_data_in) * $signed({1'b0, rs2_data_in});
+    assign mul_uu = rs1_data_in * rs2_data_in;
 
     always_comb begin
 
@@ -219,6 +228,84 @@
 
             op::OR:   alu_result = rs1_data_in | rs2_data_in;
             op::AND:  alu_result = rs1_data_in & rs2_data_in;
+
+
+            // ------------------RV32M Extension-----------------
+
+            op::MUL:
+                alu_result = mul_ss[31:0];
+
+            op::MULH:
+                alu_result = mul_ss[63:32];
+
+            op::MULHSU:
+                alu_result = mul_su[63:32];
+
+            op::MULHU:
+                alu_result = mul_uu[63:32];
+
+            // Signed division
+            op::DIV: begin
+
+                // Division by zero
+                if (rs2_data_in == 32'b0)
+                    alu_result = 32'hFFFF_FFFF;
+
+                // Signed overflow
+                else if ((rs1_data_in == 32'h8000_0000) &&
+                         (rs2_data_in == 32'hFFFF_FFFF))
+                    alu_result = 32'h8000_0000;
+
+                else
+                    alu_result =
+                        $signed(rs1_data_in) / $signed(rs2_data_in);
+
+            end
+
+            // Unsigned division
+            op::DIVU: begin
+
+                // Division by zero
+                if (rs2_data_in == 32'b0)
+                    alu_result = 32'hFFFF_FFFF;
+
+                else
+                    alu_result = rs1_data_in / rs2_data_in;
+
+            end
+
+            // Signed remainder
+            op::REM: begin
+
+                // Division by zero
+                if (rs2_data_in == 32'b0)
+                    alu_result = rs1_data_in;
+
+                // Signed overflow
+                else if ((rs1_data_in == 32'h8000_0000) &&
+                         (rs2_data_in == 32'hFFFF_FFFF))
+                    alu_result = 32'b0;
+
+                else
+                    alu_result =
+                        $signed(rs1_data_in) % $signed(rs2_data_in);
+
+            end
+
+            // Unsigned remainder
+            op::REMU: begin
+
+                // Division by zero
+                if (rs2_data_in == 32'b0)
+                    alu_result = rs1_data_in;
+
+                else
+                    alu_result = rs1_data_in % rs2_data_in;
+
+            end
+
+
+            // -----------------RV32M Extension------------------
 
 
             // --------------------------------------------------
