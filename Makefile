@@ -13,15 +13,17 @@ endif
 # Binaries
 VERILATOR ?= verilator
 
-# CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
-CC = riscv32-unknown-elf-gcc
-# OBJCOPY = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
-OBJCOPY = riscv32-unknown-elf-objcopy
-# OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
-OBJDUMP = riscv32-unknown-elf-objdump
+CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
+# CC = riscv32-unknown-elf-gcc
+OBJCOPY = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
+# OBJCOPY = riscv32-unknown-elf-objcopy
+OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
+# OBJDUMP = riscv32-unknown-elf-objdump
+# ISA configuration
+RISCV_ARCH = -march=rv32im_zicsr -mabi=ilp32
 
-# XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
-XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
+XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
+# XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
 
 # Directories
@@ -110,7 +112,7 @@ ASM_TEST_NAMES = $(patsubst $(ASM_DIR)/%.s, $(ASM_DIR)/%, $(ASM_TESTS))
 # Compile assembly to elf
 $(BUILD_DIR)/$(ASM_DIR)/%/init.elf: $(ASM_DIR)/%.s $(STD_LIB_DIR)/hades-v.ld
 	@ mkdir -p $(BUILD_DIR)/$(ASM_DIR)/$*
-	$(CC) -nostdlib -nostartfiles -T $(STD_LIB_DIR)/hades-v.ld -o $@ $<
+	$(CC) $(RISCV_ARCH) -nostdlib -nostartfiles -T $(STD_LIB_DIR)/hades-v.ld -o $@ $<
 	$(OBJDUMP) -d -r -t -S $@ > $(@:.elf=.dis)
 
 # Copy elf to bin
@@ -142,16 +144,16 @@ C_LIB_OBJ = $(patsubst $(STD_LIB_DIR)/src/%.c, $(BUILD_DIR)/$(STD_LIB_DIR)/%.o, 
 # Compile std lib c files
 $(BUILD_DIR)/$(STD_LIB_DIR)/%.o: $(STD_LIB_DIR)/src/%.c
 	@ mkdir -p $(BUILD_DIR)/$(STD_LIB_DIR)
-	$(CC) -fdata-sections -ffunction-sections -c -o $@ -I $(STD_LIB_DIR)/include $<
+	$(CC) $(RISCV_ARCH) -fdata-sections -ffunction-sections -c -o $@ -I $(STD_LIB_DIR)/include $<
 
 # Compile test c file
 $(BUILD_DIR)/$(C_DIR)/%/out.o: $(C_DIR)/%.c
 	@ mkdir -p $(BUILD_DIR)/$(C_DIR)/$*
-	$(CC) -fdata-sections -ffunction-sections -c -o $@ -I $(STD_LIB_DIR)/include $<
+	$(CC) $(RISCV_ARCH) -fdata-sections -ffunction-sections -c -o $@ -I $(STD_LIB_DIR)/include $<
 
 # Link binary
 $(BUILD_DIR)/$(C_DIR)/%/out.elf: $(BUILD_DIR)/$(C_DIR)/%/out.o $(C_LIB_OBJ) $(STD_LIB_DIR)/hades-v.ld
-	$(CC) -o $@ -nostdlib -nostartfiles -T $(STD_LIB_DIR)/hades-v.ld $< $(C_LIB_OBJ) -lgcc -Wl,--no-warn-rwx-segments -Wl,--gc-sections
+	$(CC) $(RISCV_ARCH) -o $@ -nostdlib -nostartfiles -T $(STD_LIB_DIR)/hades-v.ld $< $(C_LIB_OBJ) -lgcc -Wl,--no-warn-rwx-segments -Wl,--gc-sections
 
 # Create hex file (for sending to bootloader)
 $(BUILD_DIR)/$(C_DIR)/%/out.hex: $(BUILD_DIR)/$(C_DIR)/%/out.elf
