@@ -44,6 +44,15 @@
 #define PWM_PRESCALER_ADDRESS         (((volatile uint32_t *) ((0x00086000 + 3) << 2)))
 #define PWM_STATUS_ADDRESS            (((volatile uint32_t *) ((0x00086000 + 4) << 2)))
 
+#define I2C_ADDRESS                   (((volatile uint32_t *) ((0x00087000    ) << 2)))
+#define I2C_CTRL_ADDRESS              (((volatile uint32_t *) ((0x00087000 + 0) << 2)))
+#define I2C_STATUS_ADDRESS            (((volatile uint32_t *) ((0x00087000 + 1) << 2)))
+#define I2C_TXDATA_ADDRESS            (((volatile uint32_t *) ((0x00087000 + 2) << 2)))
+#define I2C_RXDATA_ADDRESS            (((volatile uint32_t *) ((0x00087000 + 3) << 2)))
+#define I2C_CMD_ADDRESS               (((volatile uint32_t *) ((0x00087000 + 4) << 2)))
+#define I2C_CLOCK_DIV_ADDRESS         (((volatile uint32_t *) ((0x00087000 + 5) << 2)))
+#define I2C_SLAVE_ADDR_ADDRESS        (((volatile uint32_t *) ((0x00087000 + 6) << 2)))
+
 // BUTTONS BIT INDICES
 #define BUTTON_CENTER_IDX  0
 #define BUTTON_NORTH_IDX   1
@@ -64,5 +73,22 @@
 #define PWM_CTRL_IDX_IRQ_ENABLE       1
 #define PWM_CTRL_IDX_POLARITY         2
 #define PWM_STATUS_IDX_IRQ_PENDING    0
+
+// I2C BIT INDICES
+#define I2C_CTRL_IDX_ENABLE           0
+#define I2C_CTRL_IDX_IRQ_ENABLE       1
+#define I2C_CTRL_IDX_START            2
+#define I2C_CTRL_IDX_STOP             3
+#define I2C_CTRL_IDX_RW               4
+
+#define I2C_STATUS_IDX_BUSY           0
+#define I2C_STATUS_IDX_ACK_RECEIVED   1
+#define I2C_STATUS_IDX_ARB_LOST       2
+#define I2C_STATUS_IDX_DONE           3
+
+#define I2C_CMD_IDX_CLEAR_FLAGS       0
+#define I2C_CMD_IDX_WRITE             1
+#define I2C_CMD_IDX_READ              2
+#define I2C_CMD_IDX_SEND_NACK         3
 
 #endif //_PERIPHERALS_H

@@ -36,7 +36,11 @@ module top(
     output logic uart_tx,
 
     // PWM
-    output logic pwm_out
+    output logic pwm_out,
+
+    // I2C
+    inout  logic i2c_sda,
+    inout  logic i2c_scl
 );
 
     // --------------------------------------------------------------------------------------------
@@ -166,6 +170,8 @@ module top(
         .vga_vsync(vga_vsync),
         .uart_rx_async(uart_rx_async),
         .uart_tx(uart_tx),
-        .pwm_out(pwm_out)
+        .pwm_out(pwm_out),
+        .i2c_sda(i2c_sda),
+        .i2c_scl(i2c_scl)
     );
 endmodule

@@ -1,4 +1,4 @@
-/* Copyright (c) 2026 MD. Nafiz Alamin
+/* Copyright (c) 2026 Monjurul Islam Bhuiyan
  * Embedded Architectures & Systems Integration
  * Organization: Alpha Science Lab
  * ---------------------------------------------------------------------

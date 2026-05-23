@@ -43,7 +43,11 @@ module mcu #(
     output logic uart_tx,
 
     // PWM
-    output logic pwm_out
+    output logic pwm_out,
+
+    // I2C
+    inout  logic i2c_sda,
+    inout  logic i2c_scl
 );
     import constants::*;
 
@@ -101,12 +105,14 @@ module mcu #(
     logic uart_interrupt;
     logic timer_interrupt;
     logic pwm_interrupt;
+    logic i2c_interrupt;
 
     logic external_interrupt;
     assign external_interrupt = |{
         uart_interrupt,
         test_interrupt,
-        pwm_interrupt
+        pwm_interrupt,
+        i2c_interrupt
     };
 
     // Instantiate CPU
@@ -124,9 +130,9 @@ module mcu #(
     // --------------------------------------------------------------------------------------------
 
     // Memory bus interconnect
-    wishbone_interface mem_bus_slaves[10]();
+    wishbone_interface mem_bus_slaves[11]();
     wishbone_interconnect #(
-        .NUM_SLAVES(10),
+        .NUM_SLAVES(11),
         .SLAVE_ADDRESS({
             MEMORY_START,
             LEDS_START,
@@ -137,7 +143,8 @@ module mcu #(
             TIMER_START,
             VGA_START,
             TEST_START,
-            PWM_START
+            PWM_START,
+            I2C_START
         }),
         .SLAVE_SIZE({
             MEMORY_SIZE,
@@ -149,7 +156,8 @@ module mcu #(
             TIMER_SIZE,
             VGA_SIZE,
             TEST_SIZE,
-            PWM_SIZE
+            PWM_SIZE,
+            I2C_SIZE
         })
     ) peripheral_bus_interconnect (
         .clk(clk),
@@ -273,6 +281,18 @@ module mcu #(
         .pwm_out(pwm_out),
         .interrupt(pwm_interrupt),
         .wishbone(mem_bus_slaves[9])
+    );
+
+    wishbone_i2c #(
+        .ADDRESS(I2C_START),
+        .SIZE(I2C_SIZE)
+    ) wb_i2c (
+        .clk(clk),
+        .rst(rst),
+        .sda(i2c_sda),
+        .scl(i2c_scl),
+        .interrupt(i2c_interrupt),
+        .wishbone(mem_bus_slaves[10])
     );
 
 endmodule

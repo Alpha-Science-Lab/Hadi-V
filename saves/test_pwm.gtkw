@@ -1,0 +1,36 @@
+[*]
+[*] GTKWave Analyzer v3.3.104
+[*]
+[timestart] 0
+[size] 1280 720
+[pos] -1 -1
+*-12.000000 500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.test_pwm.
+[treeopen] TOP.test_pwm.dut.
+[sst_width] 331
+[signals_width] 346
+[sst_expanded] 1
+[sst_vpaned_height] 392
+@28
+TOP.test_pwm.rst
+TOP.test_pwm.clk
+@200
+-PWM Control & Output
+@28
+TOP.test_pwm.pwm_out
+TOP.test_pwm.interrupt
+@22
+TOP.test_pwm.dut.reg_ctrl[31:0]
+TOP.test_pwm.dut.reg_period[31:0]
+TOP.test_pwm.dut.reg_duty[31:0]
+TOP.test_pwm.dut.reg_prescaler[31:0]
+@200
+-Counters & Ticks
+@22
+TOP.test_pwm.dut.pwm_counter[31:0]
+TOP.test_pwm.dut.prescaler_counter[31:0]
+@28
+TOP.test_pwm.dut.prescaler_tick
+[pattern_trace] 1
+[pattern_trace] 0

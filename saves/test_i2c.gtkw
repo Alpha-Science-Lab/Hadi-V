@@ -1,0 +1,38 @@
+[*]
+[*] GTKWave Analyzer v3.3.104
+[*]
+[timestart] 0
+[size] 1280 720
+[pos] -1 -1
+*-12.000000 500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.test_i2c.
+[treeopen] TOP.test_i2c.dut.
+[sst_width] 331
+[signals_width] 346
+[sst_expanded] 1
+[sst_vpaned_height] 392
+@28
+TOP.test_i2c.rst
+TOP.test_i2c.clk
+@200
+-I2C Bus Signals
+@28
+TOP.test_i2c.sda
+TOP.test_i2c.scl
+@200
+-Wishbone Registers
+@22
+TOP.test_i2c.dut.reg_ctrl[31:0]
+TOP.test_i2c.dut.reg_txdata[31:0]
+TOP.test_i2c.dut.reg_clock_div[31:0]
+TOP.test_i2c.dut.reg_slave_addr[31:0]
+@200
+-Controller Internal FSM
+@28
+TOP.test_i2c.dut.i2c_core_inst.state[2:0]
+TOP.test_i2c.dut.i2c_core_inst.bit_cnt[3:0]
+TOP.test_i2c.dut.i2c_core_inst.step_cnt[1:0]
+TOP.test_i2c.dut.i2c_core_inst.q_pulse
+[pattern_trace] 1
+[pattern_trace] 0
