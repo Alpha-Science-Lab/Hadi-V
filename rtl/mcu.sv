@@ -40,7 +40,10 @@ module mcu #(
 
     // UART
     input  logic uart_rx_async,
-    output logic uart_tx
+    output logic uart_tx,
+
+    // PWM
+    output logic pwm_out
 );
     import constants::*;
 
@@ -97,11 +100,13 @@ module mcu #(
     logic test_interrupt;
     logic uart_interrupt;
     logic timer_interrupt;
+    logic pwm_interrupt;
 
     logic external_interrupt;
     assign external_interrupt = |{
         uart_interrupt,
-        test_interrupt
+        test_interrupt,
+        pwm_interrupt
     };
 
     // Instantiate CPU
@@ -119,9 +124,9 @@ module mcu #(
     // --------------------------------------------------------------------------------------------
 
     // Memory bus interconnect
-    wishbone_interface mem_bus_slaves[9]();
+    wishbone_interface mem_bus_slaves[10]();
     wishbone_interconnect #(
-        .NUM_SLAVES(9),
+        .NUM_SLAVES(10),
         .SLAVE_ADDRESS({
             MEMORY_START,
             LEDS_START,
@@ -131,7 +136,8 @@ module mcu #(
             UART_START,
             TIMER_START,
             VGA_START,
-            TEST_START
+            TEST_START,
+            PWM_START
         }),
         .SLAVE_SIZE({
             MEMORY_SIZE,
@@ -142,7 +148,8 @@ module mcu #(
             UART_SIZE,
             TIMER_SIZE,
             VGA_SIZE,
-            TEST_SIZE
+            TEST_SIZE,
+            PWM_SIZE
         })
     ) peripheral_bus_interconnect (
         .clk(clk),
@@ -255,6 +262,17 @@ module mcu #(
         .rst(rst),
         .interrupt(test_interrupt),
         .wishbone(mem_bus_slaves[8])
+    );
+
+    wishbone_pwm #(
+        .ADDRESS(PWM_START),
+        .SIZE(PWM_SIZE)
+    ) wb_pwm (
+        .clk(clk),
+        .rst(rst),
+        .pwm_out(pwm_out),
+        .interrupt(pwm_interrupt),
+        .wishbone(mem_bus_slaves[9])
     );
 
 endmodule

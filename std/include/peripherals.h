@@ -37,6 +37,12 @@
 #define VGA_START_HALFWORD_ADDRESS    (((volatile uint16_t *) ((0x00090000    ) << 2)))
 #define VGA_START_WORD_ADDRESS        (((volatile uint32_t *) ((0x00090000    ) << 2)))
 #define TEST_ADDRESS                  (((volatile uint32_t *) ((0x00120000    ) << 2)))
+#define PWM_ADDRESS                   (((volatile uint32_t *) ((0x00086000    ) << 2)))
+#define PWM_CTRL_ADDRESS              (((volatile uint32_t *) ((0x00086000 + 0) << 2)))
+#define PWM_PERIOD_ADDRESS            (((volatile uint32_t *) ((0x00086000 + 1) << 2)))
+#define PWM_DUTY_ADDRESS              (((volatile uint32_t *) ((0x00086000 + 2) << 2)))
+#define PWM_PRESCALER_ADDRESS         (((volatile uint32_t *) ((0x00086000 + 3) << 2)))
+#define PWM_STATUS_ADDRESS            (((volatile uint32_t *) ((0x00086000 + 4) << 2)))
 
 // BUTTONS BIT INDICES
 #define BUTTON_CENTER_IDX  0
@@ -52,5 +58,11 @@
 #define UART_TX_STATUS_IDX_ER     0
 #define UART_TX_STATUS_IDX_IE     1
 #define UART_TX_STATUS_IDX_EMPTY  2
+
+// PWM BIT INDICES
+#define PWM_CTRL_IDX_ENABLE           0
+#define PWM_CTRL_IDX_IRQ_ENABLE       1
+#define PWM_CTRL_IDX_POLARITY         2
+#define PWM_STATUS_IDX_IRQ_PENDING    0
 
 #endif //_PERIPHERALS_H

@@ -27,6 +27,7 @@ module top;
     logic        vga_vsync;
     logic        uart_rx_async = 1;
     logic        uart_tx;
+    logic        pwm_out;
     /* verilator lint_on unusedsignal */
     mcu #(
         .CLK_FREQUENCY_MHZ(SYS_CLK_FREQUENCY_MHZ),
@@ -46,7 +47,8 @@ module top;
         .vga_hsync(vga_hsync),
         .vga_vsync(vga_vsync),
         .uart_rx_async(uart_rx_async),
-        .uart_tx(uart_tx)
+        .uart_tx(uart_tx),
+        .pwm_out(pwm_out)
     );
 
     // System clock

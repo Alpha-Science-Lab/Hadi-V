@@ -33,7 +33,10 @@ module top(
 
     // UART
     input  logic uart_rx_async,
-    output logic uart_tx
+    output logic uart_tx,
+
+    // PWM
+    output logic pwm_out
 );
 
     // --------------------------------------------------------------------------------------------
@@ -162,6 +165,7 @@ module top(
         .vga_hsync(vga_hsync),
         .vga_vsync(vga_vsync),
         .uart_rx_async(uart_rx_async),
-        .uart_tx(uart_tx)
+        .uart_tx(uart_tx),
+        .pwm_out(pwm_out)
     );
 endmodule
