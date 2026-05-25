@@ -285,7 +285,7 @@
 
         if(branch_pred_in.valid) begin
 
-            unique case ({branch_pred_in.predicted_taken, branch_taken})
+            unique case ({branch_pred_in.taken, branch_taken})
                 2'b00: begin
                     /* Correctly predicted | Not taken */
                     // Optimal case
@@ -362,7 +362,6 @@
             
             pred_update_out_d.valid = 1'b1;
             pred_update_out_d.pc = program_counter_in;
-            pred_update_out_d.target = jump_address;
         end
     end
 

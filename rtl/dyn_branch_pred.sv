@@ -17,11 +17,14 @@
     input  branch_pred_pkg::update_t pred_update_in,
 
     // Output to Fetch Stage
-    output logic        pred_jump_valid_out,
-    output logic [31:0] pred_jump_address_out,
+    output logic pred_jump_valid_out,
 
     // Prediction output
-    output branch_pred_pkg::pred_t pred_out
+    output branch_pred_pkg::pred_t pred_out,
+
+    // Jump or branch instruction
+    output logic jump_instr,
+    output logic branch_instr
 );
 
     import branch_pred_pkg::*;
@@ -78,7 +81,6 @@
     always_comb begin
 
         pred_jump_valid_out   = 1'b0;
-        pred_jump_address_out = 32'b0;
 
         pred_out = '0;
 
@@ -89,19 +91,7 @@
         // Jump
         //--------------------------------------------------------
 
-        if (is_jump) begin
-
-            pred_jump_valid_out = 1'b1;
-
-            if (instruction_in.op == op::JAL) begin
-                pred_jump_address_out = program_counter_in 
-                    + instruction_in.immediate;
-            end else begin
-                pred_jump_address_out = instruction_in.immediate;
-                /* Externally add rs1 if not x0 reg */
-            end
-                
-        end
+        if (is_jump) pred_jump_valid_out = 1'b1;
 
         //--------------------------------------------------------
         // Branch
@@ -111,18 +101,11 @@
 
             if (entry.valid && entry.tag == tag) begin
 
-                pred_out.predicted_taken = entry.counter[1];
-                pred_out.target          = entry.target;
+                pred_out.taken = entry.counter[1];
 
-                if (entry.counter[1]) begin
-                    pred_jump_valid_out   = 1'b1;
-                    pred_jump_address_out = entry.target;
-                end
+                if (entry.counter[1]) pred_jump_valid_out   = 1'b1;
             end
-            else begin
-                pred_out.predicted_taken = 1'b0;
-                pred_out.target          = 32'b0;
-            end
+            else pred_out.taken = 1'b0;
         end
     end
 
@@ -155,18 +138,11 @@
             if (curr_entry.counter != 2'b11)
                 next_entry.counter = curr_entry.counter + 2'b01;
 
-        end
-        else begin
+        end else begin
 
             if (curr_entry.counter != 2'b00)
                 next_entry.counter = curr_entry.counter - 2'b01;
         end
-
-        //--------------------------------------------------------
-        // Always refresh target
-        //--------------------------------------------------------
-
-        next_entry.target = pred_update_in.target;
     end
 
     //============================================================
@@ -194,7 +170,6 @@
                 //------------------------------------------------
 
                 else if (pred_update_in.taken) begin
-                    btb[upd_index].target  <= pred_update_in.target;
                     btb[upd_index].valid   <= 1'b1;
                     btb[upd_index].tag     <= upd_tag;
                     btb[upd_index].counter <= 2'b11;
@@ -202,5 +177,8 @@
             end
         end
     end
+
+    assign jump_instr = is_jump;
+    assign branch_instr = is_branch;
 
 endmodule

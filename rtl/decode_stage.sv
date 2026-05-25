@@ -120,17 +120,32 @@
 
     assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
-    // Branch predictor outs
-    logic pred_jump_valid;
-    logic pred_jump_address, pred_jump_address_d;
+    logic jump_address;
 
+    // Branch predictor outs
+    logic pred_jump_valid, is_jump, is_branch;
     branch_pred_pkg::pred_t pred_out_d;
 
+    // Determine jump address
     always_comb begin
-        pred_jump_address = pred_jump_address_d;
-
-        if(decoded_instruction.op == op::JALR)
-            pred_jump_address = pred_jump_address_d + rs1_data;
+        unique case (1'b1)
+    
+            // JAL
+            (is_jump && decoded_instruction.op == op::JAL):
+                jump_address = program_counter_in + decoded_instruction.immediate;
+    
+            // JALR
+            (is_jump && decoded_instruction.op == op::JALR):
+                jump_address = rs1_data + decoded_instruction.immediate;
+    
+            // Branches
+            is_branch:
+                jump_address = program_counter_in + decoded_instruction.immediate;
+    
+            default:
+                jump_address = '0;
+    
+        endcase
     end
 
     //============================================================
@@ -186,11 +201,11 @@
         .instruction_in(decoded_instruction),
 
         .pred_update_in(branch_pred_update_in),
-
         .pred_jump_valid_out(pred_jump_valid),
-        .pred_jump_address_out(pred_jump_address_d),
 
-        .pred_out(pred_out_d)
+        .pred_out(pred_out_d),
+        .jump_instr(is_jump),
+        .branch_instr(is_branch)
     );
 
 
@@ -309,7 +324,7 @@
             || pred_jump_valid) begin
             status_backwards_out = pipeline_status::JUMP;
             if(pred_jump_valid) begin
-                jump_address_backwards_out = pred_jump_address;
+                jump_address_backwards_out = jump_address;
             end
         end
         
