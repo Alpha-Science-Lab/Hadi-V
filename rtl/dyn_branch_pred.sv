@@ -14,11 +14,11 @@
     input  instruction::t instruction_in,
 
     // Update from Execute Stage
-    input  branch_pred_pkg::update_t update_in,
+    input  branch_pred_pkg::update_t pred_update_in,
 
     // Output to Fetch Stage
-    output logic        jump_valid_out,
-    output logic [31:0] jump_address_out,
+    output logic        pred_jump_valid_out,
+    output logic [31:0] pred_jump_address_out,
 
     // Prediction output
     output branch_pred_pkg::pred_t pred_out
@@ -77,8 +77,8 @@
 
     always_comb begin
 
-        jump_valid_out   = 1'b0;
-        jump_address_out = 32'b0;
+        pred_jump_valid_out   = 1'b0;
+        pred_jump_address_out = 32'b0;
 
         pred_out = '0;
 
@@ -91,13 +91,15 @@
 
         if (is_jump) begin
 
-            jump_valid_out = 1'b1;
+            pred_jump_valid_out = 1'b1;
 
-            if (instruction_in.op == op::JAL)
-                jump_address_out = program_counter_in + instruction_in.immediate;
-            else
-                jump_address_out = instruction_in.immediate;
+            if (instruction_in.op == op::JAL) begin
+                pred_jump_address_out = program_counter_in 
+                    + instruction_in.immediate;
+            end else begin
+                pred_jump_address_out = instruction_in.immediate;
                 /* Externally add rs1 if not x0 reg */
+            end
                 
         end
 
@@ -113,8 +115,8 @@
                 pred_out.target          = entry.target;
 
                 if (entry.counter[1]) begin
-                    jump_valid_out   = 1'b1;
-                    jump_address_out = entry.target;
+                    pred_jump_valid_out   = 1'b1;
+                    pred_jump_address_out = entry.target;
                 end
             end
             else begin
@@ -131,8 +133,8 @@
     logic [7:0]  upd_index;
     logic [29:0] upd_tag;
 
-    assign upd_index = update_in.pc[9:2];
-    assign upd_tag   = update_in.pc[31:2];
+    assign upd_index = pred_update_in.pc[9:2];
+    assign upd_tag   = pred_update_in.pc[31:2];
 
     btb_entry_t curr_entry;
     btb_entry_t next_entry;
@@ -148,7 +150,7 @@
         // Saturating Counter Update
         //--------------------------------------------------------
 
-        if (update_in.taken) begin
+        if (pred_update_in.taken) begin
 
             if (curr_entry.counter != 2'b11)
                 next_entry.counter = curr_entry.counter + 2'b01;
@@ -164,7 +166,7 @@
         // Always refresh target
         //--------------------------------------------------------
 
-        next_entry.target = update_in.target;
+        next_entry.target = pred_update_in.target;
     end
 
     //============================================================
@@ -173,15 +175,12 @@
 
     always_ff @(posedge clk) begin
 
-        if (rst) begin
+        if (rst) begin            
+            /* Do not reset the BTB*/
 
-            for (int i = 0; i < 256; i++) begin
-                btb[i] = '0;
-            end
-        end
-        else begin
+        end else begin
 
-            if (update_in.valid) begin
+            if (pred_update_in.valid) begin
 
                 //------------------------------------------------
                 // Existing Entry
@@ -194,8 +193,8 @@
                 // Allocate New Entry
                 //------------------------------------------------
 
-                else if (update_in.taken) begin
-                    btb[upd_index].target  <= update_in.target;
+                else if (pred_update_in.taken) begin
+                    btb[upd_index].target  <= pred_update_in.target;
                     btb[upd_index].valid   <= 1'b1;
                     btb[upd_index].tag     <= upd_tag;
                     btb[upd_index].counter <= 2'b11;

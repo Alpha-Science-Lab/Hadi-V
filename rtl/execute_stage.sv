@@ -63,6 +63,15 @@
     // Forwarding bus to earlier stages
     output forwarding::t  forwarding_out,
 
+    //==============================
+    // Branch predictor signals
+    //==============================
+
+    // Pass prediction to execute stage
+    input  branch_pred_pkg::pred_t branch_pred_in,
+
+    // Update branch history from execute stage
+    output branch_pred_pkg::update_t branch_pred_update_out,
 
     // =============================
     // Pipeline control
@@ -101,6 +110,9 @@
     assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
     bit writes_rd, bypass_ready;
+
+    // Wire that connects to flop
+    branch_pred_pkg::update_t pred_update_out_d;
 
     // ==========================================================
     // ALU + Control Logic
@@ -265,9 +277,44 @@
         // Local backwards control
         // ------------------------------------------------------
 
-        local_backwards_status =
-            (branch_taken || instruction_in.op inside {op::JAL,op::JALR})
-            ? pipeline_status::JUMP : pipeline_status::READY;
+        /* No branch predictor*/
+        // local_backwards_status = (branch_taken || instruction_in.op inside {op::JAL,op::JALR})
+        //     ? pipeline_status::JUMP : pipeline_status::READY;
+
+        /* With branch predictor*/
+
+        if(branch_pred_in.valid) begin
+
+            unique case ({branch_pred_in.predicted_taken, branch_taken})
+                2'b00: begin
+                    /* Correctly predicted | Not taken */
+                    // Optimal case
+                    local_backwards_status = pipeline_status::READY;
+                end
+                2'b01: begin
+                    /* Incorrectly predicted | Not taken */
+                    // Pipeline Flush
+                    local_backwards_status = pipeline_status::JUMP;                    
+                end
+                2'b10: begin
+                    /* Incorrectly predicted | Taken */
+                    // Pipeline Flush
+                    local_backwards_status = pipeline_status::JUMP;
+                    jump_address = program_counter_in + 4;
+                end
+                2'b11: begin
+                    /* Correctly predicted | Taken */
+                    // No penalty
+                    local_backwards_status = pipeline_status::READY;
+                end
+
+                default:;
+            endcase
+
+        end else begin
+            local_backwards_status = pipeline_status::READY;
+            jump_address = 32'b0;
+        end
 
     end
 
@@ -295,6 +342,28 @@
 
         end
 
+    end
+
+
+    // ==========================================================
+    // Prediction Feedback
+    // ==========================================================
+    always_comb begin
+        pred_update_out_d = '0;
+
+        if(pipeline_forwards_valid && 
+            instruction_in.op inside {
+                op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU
+        }) begin
+            if(branch_taken)
+                pred_update_out_d.taken = 1'b1;
+            else
+                pred_update_out_d.taken = 1'b0;
+            
+            pred_update_out_d.valid = 1'b1;
+            pred_update_out_d.pc = program_counter_in;
+            pred_update_out_d.target = jump_address;
+        end
     end
 
 
@@ -333,12 +402,16 @@
             // status_forwards_in {VALID, FETCH_MISALIGNED}
             status_forwards_out          <= status_forwards_next;
 
+            branch_pred_update_out       <= pred_update_out_d;
+
         end else begin
             // status_forwards_in either {BUBBLE, FETCH_FAULT,
             // ILLEGAL_INSTRUCTION, ECALL, EBREAK}
-            status_forwards_out <= status_forwards_in;
-            program_counter_reg_out <= program_counter_in;
+            status_forwards_out          <= status_forwards_in;
+            program_counter_reg_out      <= program_counter_in;
             next_program_counter_reg_out <= next_pc;
+
+            branch_pred_update_out       <= '0;
         end
 
     end
