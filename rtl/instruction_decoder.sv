@@ -331,8 +331,7 @@ module instruction_decoder (
                         else if (funct7 == 7'b0100000)
                             instruction_out.op = op::SUB;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MUL;
                     end
 
@@ -340,8 +339,7 @@ module instruction_decoder (
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLL;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULH;
                     end
 
@@ -349,8 +347,7 @@ module instruction_decoder (
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLT;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULHSU;
                     end
 
@@ -358,8 +355,7 @@ module instruction_decoder (
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLTU;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULHU;
                     end
 
@@ -367,8 +363,7 @@ module instruction_decoder (
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::XOR;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::DIV;
                     end
 
@@ -379,8 +374,7 @@ module instruction_decoder (
                         else if (funct7 == 7'b0100000)
                             instruction_out.op = op::SRA;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::DIVU;
                     end
 
@@ -388,8 +382,7 @@ module instruction_decoder (
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::OR;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::REM;
                     end
 
@@ -397,8 +390,7 @@ module instruction_decoder (
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::AND;
 
-                        // RV32M
-                        else if (funct7 == 7'b0000001)
+                        else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::REMU;
                     end
 
