@@ -37,8 +37,9 @@ set SOURCES {
     defines/op.sv
     defines/instruction.sv
     defines/pipeline_status.sv
-    defines/constants.sv
     defines/forwarding.sv
+    defines/branch_pred_pkg.sv
+    defines/constants.sv
     defines/clk_params.sv
 
     lib/*.sv
