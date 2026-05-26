@@ -29,32 +29,32 @@
 
     import branch_pred_pkg::*;
 
+    btb_entry_t entry;
+    btb_entry_t curr_entry, next_entry;
+
+    logic [7:0] index;
+    logic [29:0] tag;
+    logic is_branch, is_jump;
+    logic [7:0] upd_index;
+    logic [29:0] upd_tag;
+
     //============================================================
     // BTB
     //============================================================
 
     btb_entry_t btb [255:0];
 
-    logic [7:0]  index;
-    logic [29:0] tag;
-
     assign index = program_counter_in[9:2];
-    assign tag   = program_counter_in[31:2];
-
-    btb_entry_t entry;
-
+    assign tag = program_counter_in[31:2];
     assign entry = btb[index];
 
     //============================================================
     // Instruction Decode
     //============================================================
 
-    logic is_branch;
-    logic is_jump;
-
     always_comb begin
         is_branch = 1'b0;
-        is_jump   = 1'b0;
+        is_jump = 1'b0;
 
         case (instruction_in.op)
 
@@ -80,12 +80,12 @@
 
     always_comb begin
 
-        pred_jump_valid_out   = 1'b0;
+        pred_jump_valid_out = 1'b0;
 
         pred_out = '0;
 
         pred_out.valid = is_branch;
-        pred_out.pc    = program_counter_in;
+        pred_out.pc = program_counter_in;
 
         //--------------------------------------------------------
         // Jump
@@ -103,9 +103,11 @@
 
                 pred_out.taken = entry.counter[1];
 
-                if (entry.counter[1]) pred_jump_valid_out   = 1'b1;
-            end
-            else pred_out.taken = 1'b0;
+                if (entry.counter[1]) pred_jump_valid_out = 1'b1;
+
+            end else pred_out.taken = 1'b0; /* Not found in BTB*/
+            /* Hence predict not taken*/
+
         end
     end
 
@@ -113,20 +115,13 @@
     // Update Path
     //============================================================
 
-    logic [7:0]  upd_index;
-    logic [29:0] upd_tag;
-
     assign upd_index = pred_update_in.pc[9:2];
-    assign upd_tag   = pred_update_in.pc[31:2];
-
-    btb_entry_t curr_entry;
-    btb_entry_t next_entry;
-
+    assign upd_tag = pred_update_in.pc[31:2];
     assign curr_entry = btb[upd_index];
 
     always_comb begin
 
-        // Default = current entry
+        // Default
         next_entry = curr_entry;
 
         //--------------------------------------------------------
@@ -170,8 +165,8 @@
                 //------------------------------------------------
 
                 else if (pred_update_in.taken) begin
-                    btb[upd_index].valid   <= 1'b1;
-                    btb[upd_index].tag     <= upd_tag;
+                    btb[upd_index].valid <= 1'b1;
+                    btb[upd_index].tag <= upd_tag;
                     btb[upd_index].counter <= 2'b11;
                 end
             end
