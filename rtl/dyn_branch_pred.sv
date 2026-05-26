@@ -7,7 +7,6 @@
 
  module dyn_branch_pred (
     input  logic clk,
-    input  logic rst,
 
     // From Decode Stage
     input  logic [31:0] program_counter_in,
@@ -73,6 +72,7 @@
             default:;
         endcase
     end
+    
 
     //============================================================
     // Prediction Logic
@@ -111,6 +111,7 @@
         end
     end
 
+
     //============================================================
     // Update Path
     //============================================================
@@ -146,30 +147,25 @@
 
     always_ff @(posedge clk) begin
 
-        if (rst) begin            
-            /* Do not reset the BTB*/
+        if (pred_update_in.valid) begin
 
-        end else begin
+            //------------------------------------------------
+            // Existing Entry
+            //------------------------------------------------
 
-            if (pred_update_in.valid) begin
+            if (curr_entry.valid && curr_entry.tag == upd_tag)
+                btb[upd_index] <= next_entry;                
 
-                //------------------------------------------------
-                // Existing Entry
-                //------------------------------------------------
+            //------------------------------------------------
+            // Add New Entry
+            //------------------------------------------------
 
-                if (curr_entry.valid && curr_entry.tag == upd_tag)
-                    btb[upd_index] <= next_entry;                
-
-                //------------------------------------------------
-                // Allocate New Entry
-                //------------------------------------------------
-
-                else if (pred_update_in.taken) begin
-                    btb[upd_index].valid <= 1'b1;
-                    btb[upd_index].tag <= upd_tag;
-                    btb[upd_index].counter <= 2'b11;
-                end
+            else if (pred_update_in.taken) begin
+                btb[upd_index].counter <= 2'b11;
+                btb[upd_index].valid <= 1'b1;
+                btb[upd_index].tag <= upd_tag;
             end
+            /* If not taken don't bother add*/
         end
     end
 

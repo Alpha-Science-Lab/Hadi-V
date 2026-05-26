@@ -77,16 +77,16 @@
     // Pipeline control signals
     //============================================================
 
-    // Forward pipeline status (comes from Fetch)
+    // Forward pipeline status
     input  pipeline_status::forwards_t  status_forwards_in,
 
-    // Forward pipeline status (to Execute)
+    // Forward pipeline status
     output pipeline_status::forwards_t  status_forwards_out,
 
-    // Backward pipeline control (from Execute)
+    // Backward pipeline control
     input  pipeline_status::backwards_t status_backwards_in,
 
-    // Backward pipeline control (to Fetch)
+    // Backward pipeline control
     output pipeline_status::backwards_t status_backwards_out,
 
     // Jump address propagated backwards
@@ -117,35 +117,22 @@
 
     // Status forwards is vaild or not
     logic pipeline_forwards_valid;
-
     assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
-    logic jump_address;
+    logic jump_address, is_jump, is_branch;
 
-    // Branch predictor outs
-    logic pred_jump_valid, is_jump, is_branch;
+    // Branch predictor out
+    logic pred_jump_valid;
     branch_pred_pkg::pred_t pred_out_d;
 
     // Determine jump address
     always_comb begin
-        unique case (1'b1)
-    
-            // JAL
-            (is_jump && decoded_instruction.op == op::JAL):
-                jump_address = program_counter_in + decoded_instruction.immediate;
-    
-            // JALR
-            (is_jump && decoded_instruction.op == op::JALR):
-                jump_address = rs1_data + decoded_instruction.immediate;
-    
-            // Branches
-            is_branch:
-                jump_address = program_counter_in + decoded_instruction.immediate;
-    
-            default:
-                jump_address = '0;
-    
-        endcase
+        jump_address = (is_jump || is_branch)
+            ? ((decoded_instruction.op == op::JALR)
+                ? rs1_data
+                : program_counter_in)
+            + decoded_instruction.immediate
+            : '0;
     end
 
     //============================================================
@@ -159,7 +146,7 @@
     // - csr address
     //============================================================
 
-    instruction_decoder decoder (
+    instruction_decoder hardwired_decoder (
         .instruction_in(instruction_in),
         .instruction_out(decoded_instruction)
     );
@@ -195,7 +182,6 @@
 
     dyn_branch_pred branch_pred(
         .clk(clk),
-        .rst(rst),
 
         .program_counter_in(program_counter_in),
         .instruction_in(decoded_instruction),

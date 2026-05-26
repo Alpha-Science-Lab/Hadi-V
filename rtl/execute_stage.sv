@@ -41,9 +41,9 @@
     input logic [31:0]   program_counter_in,
 
 
-    // =============================
+    // ==========================================================
     // Pipeline register outputs
-    // =============================
+    // ==========================================================
 
     // Data used by store or CSR operations
     output logic [31:0]   source_data_reg_out,
@@ -63,9 +63,9 @@
     // Forwarding bus to earlier stages
     output forwarding::t  forwarding_out,
 
-    //==============================
+    // ==========================================================
     // Branch predictor signals
-    //==============================
+    // ==========================================================
 
     // Pass prediction to execute stage
     input  branch_pred_pkg::pred_t branch_pred_in,
@@ -73,9 +73,9 @@
     // Update branch history from execute stage
     output branch_pred_pkg::update_t branch_pred_update_out,
 
-    // =============================
+    // ==========================================================
     // Pipeline control
-    // =============================
+    // ==========================================================
 
     // Status moving forward through pipeline
     input  pipeline_status::forwards_t  status_forwards_in,
@@ -332,12 +332,12 @@
         if (status_backwards_in != pipeline_status::READY) begin
 
             // Later stage overrides this stage!
-            status_backwards_out       = status_backwards_in; // STALL from MEM or JUMP from WB
+            status_backwards_out = status_backwards_in; // STALL from MEM or JUMP from WB
             jump_address_backwards_out = jump_address_backwards_in;
 
         end else begin
 
-            status_backwards_out       = local_backwards_status;
+            status_backwards_out = local_backwards_status;
             jump_address_backwards_out = jump_address;
 
         end
@@ -351,14 +351,13 @@
     always_comb begin
         pred_update_out_d = '0;
 
-        if(pipeline_forwards_valid && 
-            instruction_in.op inside {
-                op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU
+        if(instruction_in.op inside {
+            op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU
         }) begin
-            if(branch_taken)
-                pred_update_out_d.taken = 1'b1;
-            else
-                pred_update_out_d.taken = 1'b0;
+            if(branch_taken) begin
+                pred_update_out_d.taken = 1'b1;    
+            end
+            else pred_update_out_d.taken = 1'b0;
             
             pred_update_out_d.valid = 1'b1;
             pred_update_out_d.pc = program_counter_in;
