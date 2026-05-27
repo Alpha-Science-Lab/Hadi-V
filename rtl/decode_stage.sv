@@ -119,7 +119,8 @@
     logic pipeline_forwards_valid;
     assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
-    logic jump_address, is_jump, is_branch;
+    logic [31:0] jump_address;
+    logic is_jump, is_branch;
 
     // Branch predictor out
     logic pred_jump_valid;
@@ -127,12 +128,19 @@
 
     // Determine jump address
     always_comb begin
-        jump_address = (is_jump || is_branch)
-            ? ((decoded_instruction.op == op::JALR)
-                ? rs1_data
-                : program_counter_in)
-            + decoded_instruction.immediate
-            : '0;
+        if (is_jump || is_branch) begin
+            if (decoded_instruction.op == op::JALR) begin
+                jump_address =
+                    (rs1_data + decoded_instruction.immediate) & ~32'b1;
+            end
+            else begin
+                jump_address =
+                    program_counter_in + decoded_instruction.immediate;
+            end
+        end
+        else begin
+            jump_address = '0;
+        end
     end
 
     //============================================================
@@ -307,9 +315,12 @@
 
         // Jump cancels stall
         if (status_backwards_in == pipeline_status::JUMP 
-            || pred_jump_valid) begin
+            || (pred_jump_valid && pipeline_forwards_valid 
+            && jump_address[1:0] == 2'b00)) 
+        begin
             status_backwards_out = pipeline_status::JUMP;
-            if(pred_jump_valid) begin
+            if (pred_jump_valid && pipeline_forwards_valid 
+                && jump_address[1:0] == 2'b00) begin
                 jump_address_backwards_out = jump_address;
             end
         end
