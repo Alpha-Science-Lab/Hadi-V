@@ -254,14 +254,9 @@
         // Branch target calculation
         // ------------------------------------------------------
 
-        if (instruction_in.op inside {
-            op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU
-        }) 
-        begin
-            if (branch_taken) begin
-                jump_address = program_counter_in + instruction_in.immediate;
-                next_pc      = jump_address;
-            end
+        if (branch_taken) begin
+            jump_address = program_counter_in + instruction_in.immediate;
+            next_pc = jump_address;
         end
 
 
@@ -270,19 +265,15 @@
         // RISC-V requires instruction address alignment
         // ------------------------------------------------------
 
-        if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) &&
-            jump_address[1:0] != 2'b00)
+        if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) 
+            && jump_address[1:0] != 2'b00) begin
                 status_forwards_next = pipeline_status::FETCH_MISALIGNED;
+        end
+        
 
         // ------------------------------------------------------
         // Local backwards control
         // ------------------------------------------------------
-
-        /* No branch predictor*/
-        // local_backwards_status = (branch_taken || instruction_in.op inside {op::JAL,op::JALR})
-        //     ? pipeline_status::JUMP : pipeline_status::READY;
-
-        /* With branch predictor*/
 
         if(branch_pred_in.valid) begin
 
@@ -302,6 +293,7 @@
                     // Pipeline Flush
                     local_backwards_status = pipeline_status::JUMP;
                     jump_address = program_counter_in + 4;
+                    next_pc = jump_address;
                 end
                 2'b11: begin
                     /* Correctly predicted | Taken */
@@ -312,10 +304,7 @@
                 default:;
             endcase
 
-        end else begin
-            local_backwards_status = pipeline_status::READY;
-            jump_address = 32'b0;
-        end
+        end else local_backwards_status = pipeline_status::READY;   
 
     end
 
@@ -331,38 +320,35 @@
         status_backwards_out = pipeline_status::READY;
 
         if (status_backwards_in != pipeline_status::READY) begin
-
             // Later stage overrides this stage!
             status_backwards_out = status_backwards_in; // STALL from MEM or JUMP from WB
             jump_address_backwards_out = jump_address_backwards_in;
 
         end else begin
-
             status_backwards_out = local_backwards_status;
             jump_address_backwards_out = jump_address;
-
         end
-
     end
 
 
     // ==========================================================
     // Prediction Feedback
     // ==========================================================
+
     always_comb begin
         pred_update_out_d = '0;
+        // Check if it's a branch instruction
 
-        if(instruction_in.op inside {
-            op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU
-        }) begin
-            if(branch_taken) begin
-                pred_update_out_d.taken = 1'b1;    
-            end
+        if (branch_pred_in.valid) begin
+            // Branch history update in BTB
+
+            if(branch_taken) pred_update_out_d.taken = 1'b1;
             else pred_update_out_d.taken = 1'b0;
-            
+
             pred_update_out_d.valid = 1'b1;
             pred_update_out_d.pc = program_counter_in;
         end
+
     end
 
 
@@ -382,8 +368,7 @@
             source_data_reg_out          <= 32'b0;
 
             status_forwards_out          <= pipeline_status::BUBBLE;
-
-        end 
+        end
         else if (status_backwards_in == pipeline_status::JUMP) begin
             status_forwards_out <= pipeline_status::BUBBLE;
         end
@@ -412,7 +397,6 @@
 
             branch_pred_update_out       <= '0;
         end
-
     end
 
 
