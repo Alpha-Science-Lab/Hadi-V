@@ -1,5 +1,6 @@
 /* File: execute_stage.sv
  * Brought up by Md. Jubaer Fahad
+ * Extended (branch prediction) by Md. Jannatul Nayem
  * Organization: Alpha Science Lab
  * March 2026
  *
