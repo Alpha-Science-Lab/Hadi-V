@@ -64,19 +64,29 @@
     output instruction::t instruction_reg_out,
 
     //============================================================
+    // Branch predictor signals
+    //============================================================
+
+    // Update branch history from execute stage
+    input  branch_pred_pkg::update_t branch_pred_update_in,
+
+    // Pass prediction to execute stage
+    output branch_pred_pkg::pred_t branch_pred_out,
+
+    //============================================================
     // Pipeline control signals
     //============================================================
 
-    // Forward pipeline status (comes from Fetch)
+    // Forward pipeline status
     input  pipeline_status::forwards_t  status_forwards_in,
 
-    // Forward pipeline status (to Execute)
+    // Forward pipeline status
     output pipeline_status::forwards_t  status_forwards_out,
 
-    // Backward pipeline control (from Execute)
+    // Backward pipeline control
     input  pipeline_status::backwards_t status_backwards_in,
 
-    // Backward pipeline control (to Fetch)
+    // Backward pipeline control
     output pipeline_status::backwards_t status_backwards_out,
 
     // Jump address propagated backwards
@@ -107,9 +117,31 @@
 
     // Status forwards is vaild or not
     logic pipeline_forwards_valid;
-
     assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
+    logic [31:0] jump_address;
+    logic is_jump, is_branch;
+
+    // Branch predictor out
+    logic pred_jump_valid;
+    branch_pred_pkg::pred_t pred_out_d;
+
+    // Determine jump address
+    always_comb begin
+        if (is_jump || is_branch) begin
+            if (decoded_instruction.op == op::JALR) begin
+                jump_address =
+                    (rs1_data + decoded_instruction.immediate) & ~32'b1;
+            end
+            else begin
+                jump_address =
+                    program_counter_in + decoded_instruction.immediate;
+            end
+        end
+        else begin
+            jump_address = '0;
+        end
+    end
 
     //============================================================
     // Instruction Decoder
@@ -122,7 +154,7 @@
     // - csr address
     //============================================================
 
-    instruction_decoder decoder (
+    instruction_decoder hardwired_decoder (
         .instruction_in(instruction_in),
         .instruction_out(decoded_instruction)
     );
@@ -151,6 +183,25 @@
         .write_data(wb_forwarding_in.data),
         .write_enable(wb_forwarding_in.data_valid)
     );
+
+    //============================================================
+    // Branch Predictor
+    //============================================================    
+
+    dyn_branch_pred branch_pred(
+        .clk(clk),
+
+        .program_counter_in(program_counter_in),
+        .instruction_in(decoded_instruction),
+
+        .pred_update_in(branch_pred_update_in),
+        .pred_jump_valid_out(pred_jump_valid),
+
+        .pred_out(pred_out_d),
+        .jump_instr(is_jump),
+        .branch_instr(is_branch)
+    );
+
 
 
     //============================================================
@@ -263,8 +314,16 @@
         jump_address_backwards_out = jump_address_backwards_in;
 
         // Jump cancels stall
-        if (status_backwards_in == pipeline_status::JUMP)
+        if (status_backwards_in == pipeline_status::JUMP 
+            || (pred_jump_valid && pipeline_forwards_valid 
+            && jump_address[1:0] == 2'b00)) 
+        begin
             status_backwards_out = pipeline_status::JUMP;
+            if (pred_jump_valid && pipeline_forwards_valid 
+                && jump_address[1:0] == 2'b00) begin
+                jump_address_backwards_out = jump_address;
+            end
+        end
         
         else if (status_backwards_in == pipeline_status::STALL)
             status_backwards_out = pipeline_status::STALL;
@@ -357,12 +416,15 @@
                     rs1_data_reg_out <= rs1_data;
                     rs2_data_reg_out <= rs2_data;
 
+                    branch_pred_out  <= pred_out_d; /* Branch prediction*/
+
                 end else begin
                     instruction_reg_out <= '0;
                     // Memory address corresponding to the error
                     program_counter_reg_out <= program_counter_in;
                     rs1_data_reg_out <= '0;
                     rs2_data_reg_out <= '0;
+                    branch_pred_out  <= '0;
                 end
 
             end
