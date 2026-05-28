@@ -19,18 +19,13 @@ CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
 # OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
 OBJDUMP = riscv32-unknown-elf-objdump
-# ISA configuration
-RISCV_ARCH = -march=rv32im_zicsr -mabi=ilp32
-CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
-# CC = riscv32-unknown-elf-gcc
-OBJCOPY = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
-# OBJCOPY = riscv32-unknown-elf-objcopy
-OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
-# OBJDUMP = riscv32-unknown-elf-objdump
 
 XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
 # XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
+
+# ISA configuration
+RISCV_ARCH = -march=rv32im_zicsr -mabi=ilp32
 
 # Directories
 SIM_DIR = sim
