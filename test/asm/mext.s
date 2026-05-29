@@ -60,7 +60,7 @@ test_init:
     lui  t3, %hi(0x120000<<2)
     addi t3, t3, %lo(0x120000<<2)
 
-test_fail:    
+test_fail:
     assert_value zero, 1
 
 # --------------------------------------------------
