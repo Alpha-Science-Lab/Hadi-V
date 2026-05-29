@@ -3,13 +3,17 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: wishbone_test.sv
+ *
+ * Modified (add scratchpad register)
+ * by Md. Jannatul Nayem
+ * Org: Alpha Science Lab, April '26
  */
 
 
 
-module wishbone_test #(
+ module wishbone_test #(
     parameter bit [31:0] ADDRESS,
-    parameter bit [31:0] SIZE = 5
+    parameter bit [31:0] SIZE = 6
 ) (
     input logic clk,
     input logic rst,
@@ -29,6 +33,7 @@ module wishbone_test #(
     - 0x02: Counter register: Reads return an incrementing number, starting at 0
     - 0x03: Stall Acknowledge register: Reading and writing stall for 3 clock cycles before acknowledging
     - 0x04: Stall Error register: Reading and writing stall for 3 clock cycles before erroring
+    - 0x05: Scratchpad register: General-purpose debug/error-cause register
     */
 
 
@@ -62,6 +67,32 @@ module wishbone_test #(
             test_stb <= 0;
         end
     end
+
+    // Scratchpad register
+    // CPU can write extra debug/error-cause information here.
+    // Testbench can observe scratchpad_stb and scratchpad_reg through hierarchy.
+
+    logic [31:0] scratchpad_reg;
+    logic scratchpad_stb;
+
+    logic scratchpad_sel, scratchpad_ack;
+
+    assign scratchpad_sel = wishbone.cyc && wishbone.stb && offset == 5;
+    assign scratchpad_ack = scratchpad_sel;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            scratchpad_reg <= 0;
+            scratchpad_stb <= 0;
+        end
+        else if (scratchpad_ack && wishbone.we) begin
+            scratchpad_reg <= wishbone.dat_mosi;
+            scratchpad_stb <= 1;
+        end
+        else begin
+            scratchpad_stb <= 0;
+        end
+    end    
 
     // Interrupt register
     
@@ -147,14 +178,16 @@ module wishbone_test #(
         interrupt_sel,
         counter_sel,
         stall_sel,
-        error_sel
+        error_sel,
+        scratchpad_sel
     };
 
     assign wishbone.ack = |{
         test_ack,
         interrupt_ack,
         counter_ack,
-        stall_ack
+        stall_ack,
+        scratchpad_ack
     };
 
     assign wishbone.err = |{
@@ -167,4 +200,5 @@ module wishbone_test #(
         counter_ack ? counter :
         stall_ack ? stall_reg :
         32'b0;
+
 endmodule

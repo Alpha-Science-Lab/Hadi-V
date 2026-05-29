@@ -3,6 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: top.sv
+ *
+ * Modified (add scratchpad register)
+ * by Md. Jannatul Nayem
+ * Org: Alpha Science Lab, April '26
  */
 
 
@@ -96,6 +100,15 @@ module top;
                 end
             endcase
         end
+
+        if (mcu.wb_test.scratchpad_stb) begin
+            $display("\033[0;33m"); // color_orange
+            $display("(%6d ps) Scratchpad: 0x%08h", 
+                $time(), mcu.wb_test.scratchpad_reg);
+            $display("\033[0m"); // color off
+
+        end
+
     end
 
     // --------------------------------------------------------------------------------------------
