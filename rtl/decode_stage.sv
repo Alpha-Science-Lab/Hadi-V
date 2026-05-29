@@ -310,8 +310,6 @@
     always_comb begin
 
         status_backwards_out = pipeline_status::READY;
-        // Forward jump address backward
-        jump_address_backwards_out = jump_address_backwards_in;
 
         // Jump cancels stall
         if (status_backwards_in == pipeline_status::JUMP 
@@ -319,7 +317,10 @@
             && jump_address[1:0] == 2'b00)) 
         begin
             status_backwards_out = pipeline_status::JUMP;
-            if (pred_jump_valid && pipeline_forwards_valid 
+            if (status_backwards_in == pipeline_status::JUMP) begin
+                jump_address_backwards_out = jump_address_backwards_in;
+            end
+            else if (pred_jump_valid && pipeline_forwards_valid 
                 && jump_address[1:0] == 2'b00) begin
                 jump_address_backwards_out = jump_address;
             end
