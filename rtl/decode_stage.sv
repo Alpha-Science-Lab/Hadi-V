@@ -310,6 +310,7 @@
     always_comb begin
 
         status_backwards_out = pipeline_status::READY;
+        jump_address_backwards_out = '0;
 
         // Jump cancels stall
         if (status_backwards_in == pipeline_status::JUMP 
