@@ -14,11 +14,6 @@ if {$argc > 0} {
     set m_ext [lindex $argv 0]
 }
 
-puts "====================================="
-puts "Hadi-V Synthesis Configuration"
-puts "M_EXT = $m_ext"
-puts "====================================="
-
 # Supress some warnings
 # identifier <name> is used before its declaration
 set_msg_config -id {Synth 8-6901} -suppress
@@ -65,13 +60,12 @@ set SOURCES {
 }
 
 if {$m_ext == 1} {
-    foreach source $SOURCES {
-        read_verilog -sv -define M_EXT [glob -directory $ROOT $source]
-    }
-} else {
-    foreach source $SOURCES {
-        read_verilog -sv [glob -directory $ROOT $source]
-    }
+    puts "INFO: Enabling M extension"
+    set_property verilog_define {M_EXT} [current_fileset]
+}
+
+foreach source $SOURCES {
+    read_verilog -sv [glob -directory $ROOT $source]
 }
 
 # Read constraints
