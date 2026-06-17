@@ -241,7 +241,8 @@
             op::OR:   alu_result = rs1_data_in | rs2_data_in;
             op::AND:  alu_result = rs1_data_in & rs2_data_in;
 
-
+            
+`ifdef M_EXT
             // ------------------RV32M Extension-----------------
 
             op::MUL:
@@ -318,7 +319,7 @@
 
 
             // -----------------RV32M Extension------------------
-
+`endif
 
             // --------------------------------------------------
             // CSR instructions

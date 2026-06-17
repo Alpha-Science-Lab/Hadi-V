@@ -7,6 +7,18 @@
 # Get root directory
 set ROOT [file normalize [file dirname [info script]]/..]
 
+# Optional feature flags passed from Make
+set m_ext 0
+
+if {$argc > 0} {
+    set m_ext [lindex $argv 0]
+}
+
+puts "====================================="
+puts "Hadi-V Synthesis Configuration"
+puts "M_EXT = $m_ext"
+puts "====================================="
+
 # Supress some warnings
 # identifier <name> is used before its declaration
 set_msg_config -id {Synth 8-6901} -suppress
@@ -52,8 +64,14 @@ set SOURCES {
     synth/top.sv
 }
 
-foreach source $SOURCES {
-    read_verilog -sv [glob -directory $ROOT $source]
+if {$m_ext == 1} {
+    foreach source $SOURCES {
+        read_verilog -sv -define M_EXT [glob -directory $ROOT $source]
+    }
+} else {
+    foreach source $SOURCES {
+        read_verilog -sv [glob -directory $ROOT $source]
+    }
 }
 
 # Read constraints
@@ -84,4 +102,4 @@ report_utilization -file reports/utilization_pnr.rpt
 report_power -file reports/power_pnr.rpt
 
 # Generate bitstream
-write_bitstream -force -bin hades-v.bit
+write_bitstream -force -bin hadi-v.bit

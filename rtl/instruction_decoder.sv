@@ -269,41 +269,56 @@ module instruction_decoder (
 
                         else if (funct7 == 7'b0100000)
                             instruction_out.op = op::SUB;
-
+                        
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MUL;
+                    `endif
+                    
                     end
 
                     3'b001: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLL;
-
+                        
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULH;
+                    `endif
+                    
                     end
 
                     3'b010: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLT;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULHSU;
+                    `endif
+                    
                     end
 
                     3'b011: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLTU;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULHU;
+                    `endif
+                    
                     end
 
                     3'b100: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::XOR;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::DIV;
+                    `endif
+                    
                     end
 
                     3'b101: begin
@@ -312,25 +327,34 @@ module instruction_decoder (
 
                         else if (funct7 == 7'b0100000)
                             instruction_out.op = op::SRA;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::DIVU;
+                    `endif
+                    
                     end
 
                     3'b110: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::OR;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::REM;
+                    `endif
+                    
                     end
 
                     3'b111: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::AND;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::REMU;
+                    `endif
+                    
                     end
 
                 endcase

@@ -57,6 +57,7 @@
     FENCE,
 
     // RV32M
+`ifdef M_EXT
     MUL,
     MULH,
     MULHSU,
@@ -65,6 +66,7 @@
     DIVU,
     REM,
     REMU,
+`endif
 
     // zifencei
     FENCE_I,

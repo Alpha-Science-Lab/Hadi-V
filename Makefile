@@ -24,9 +24,6 @@ OBJDUMP = riscv32-unknown-elf-objdump
 XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
 
-# ISA configuration
-RISCV_ARCH = -march=rv32im_zicsr_zifencei -mabi=ilp32
-
 # Directories
 SIM_DIR = sim
 BUILD_DIR = build
@@ -43,8 +40,23 @@ ASM_DIR = $(TEST_DIR)/asm
 C_DIR = $(TEST_DIR)/c
 SV_DIR = $(TEST_DIR)/sv
 
+################################################################################
+#                            ISA / Feature Selection                           #
+################################################################################
+M_EXT ?= 0
+
+# ISA configuration
+ifeq ($(M_EXT),1)
+RISCV_ARCH = -march=rv32im_zicsr_zifencei -mabi=ilp32
+else
+RISCV_ARCH = -march=rv32i_zicsr_zifencei -mabi=ilp32
+endif
+
 # Verilator Flags
 VERILATOR_FLAGS =
+ifeq ($(M_EXT),1)
+VERILATOR_FLAGS += -DM_EXT
+endif
 VERILATOR_FLAGS += -cc
 VERILATOR_FLAGS += -Wall -Wno-fatal
 VERILATOR_FLAGS += -f $(SIM_DIR)/files.txt
@@ -84,7 +96,7 @@ MODE ?= batch
 .PHONY: synthesis
 synthesis: $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)
-	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth.tcl
+	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth.tcl -tclargs $(M_EXT)
 
 ################################################################################
 #                                  Simulation                                  #
