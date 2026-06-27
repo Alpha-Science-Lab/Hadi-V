@@ -99,6 +99,18 @@ synthesis: $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
 	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth.tcl -tclargs $(M_EXT)
 
 ################################################################################
+#                              CPU-only Synthesis                              #
+################################################################################
+
+.PHONY: synthesis_cpu
+synthesis_cpu:
+	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/cpu
+	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && \
+	$(VIVADO) -mode $(MODE) \
+	-source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl \
+	-tclargs $(M_EXT)
+
+################################################################################
 #                                  Simulation                                  #
 ################################################################################
 
