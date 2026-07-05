@@ -72,6 +72,15 @@ module top;
     end
 
     initial begin
+        buttons_async = 5'b00001; // assert reset
+
+        // hold reset for some cycles
+        repeat (32) @(posedge clk);
+
+        buttons_async = 5'b00000; // release reset
+    end
+
+    initial begin
         $dumpfile("sim.fst");
         $dumpvars;
 

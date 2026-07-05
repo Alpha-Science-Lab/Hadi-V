@@ -20,10 +20,10 @@ package branch_pred_pkg;
     } update_t;
     
     // BTB Entry Definition
-    typedef struct packed {
-        logic        valid;
-        logic [29:0] tag;           // PC[31:2]
-        logic [1:0]  counter;       // 2-bit saturating counter
-    } btb_entry_t;
+    // typedef struct packed {
+    //     logic        valid;
+    //     logic [29:0] tag;           // PC[31:2]
+    //     logic [1:0]  counter;       // 2-bit saturating counter
+    // } btb_entry_t;
 
 endpackage

@@ -17,16 +17,36 @@ module register_file (
     input  logic [31:0] write_data,
     input  logic        write_enable
 );  
+    bit clearing;
+    logic [4:0] clr_addr;
 
     // 32 registers, each 32 bits
+    (* ram_style = "distributed" *)
     logic [31:0] registers [31:0];
-
 
     // Synchronous Write
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (int i = 0; i < 32; i++) begin
-                registers[i] <= 32'b0;
+
+            /*A distributed RAM (LUTRAM) primitive does not \
+                support clearing every location with a reset signal*/
+            
+            // for (int i = 0; i < 32; i++) begin
+            //     registers[i] <= 32'b0;
+            // end
+                
+            if(!clearing) begin
+                clearing <= 1'b1;
+                clr_addr <= 5'd0;
+            end
+            
+            else if (clearing) begin
+                registers[clr_addr] <= 32'b0;
+
+                if (clr_addr == 31)
+                    clearing <= 1'b0;
+                else
+                    clr_addr <= clr_addr + 1;
             end
         end
         else begin
