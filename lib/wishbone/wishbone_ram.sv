@@ -31,7 +31,7 @@ module wishbone_ram #(
     // --------------------------------------------------------------------------------------------
 
     // Note: ram_decomp attribute ensures Vivado specifies as a Byte Wide Write Enable RAM
-    (* ram_decomp = "power" *)
+    (* ram_style = "block", ram_decomp = "power" *)
     logic [31:0] memory [SIZE];
 
     initial $readmemh("init.mem", memory);

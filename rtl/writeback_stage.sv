@@ -15,7 +15,10 @@
  *  - Help track performance metrics
  */
 
- module writeback_stage (
+ module writeback_stage #(
+    parameter bit ENABLE_COUNTERS = 1,
+    parameter bit COUNTERS_64BIT = 1
+) (
 
     input  logic clk,
     input  logic rst,
@@ -23,7 +26,7 @@
     // Inputs
     input  logic [31:0] source_data_in,
     input  logic [31:0] rd_data_in,
-    input  instruction::t instruction_in,
+    input  instruction::ctrl_t instruction_in,
 
     input  logic [31:0] program_counter_in,
     input  logic [31:0] next_program_counter_in,
@@ -114,7 +117,10 @@
     // CSR FILE
     // ============================================================
 
-    csr_file csr_file_inst (
+    csr_file #(
+        .ENABLE_COUNTERS(ENABLE_COUNTERS),
+        .COUNTERS_64BIT(COUNTERS_64BIT)
+    ) csr_file_inst (
         .clk(clk),
         .rst(rst),
 

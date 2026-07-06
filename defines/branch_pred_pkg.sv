@@ -11,12 +11,16 @@ package branch_pred_pkg;
         logic        valid;          // Is this a branch?
         logic [31:0] pc;             // Address of branch instruction
         logic        taken;
+        logic [1:0]  counter;        // BTB counter value
+        logic        btb_hit;        // Did it hit in BTB?
     } pred_t;
 
     typedef struct packed {
         logic        valid;          // Is this a branch update?
         logic [31:0] pc;             // Branch PC
         logic        taken;          // Actual outcome
+        logic [1:0]  old_counter;    // Old counter value
+        logic        btb_hit;        // Did it hit in BTB?
     } update_t;
     
     // BTB Entry Definition

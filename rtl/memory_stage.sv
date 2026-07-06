@@ -34,7 +34,7 @@
 
     input logic [31:0] source_data_in,
     input logic [31:0] rd_data_in,
-    input instruction::t instruction_in,
+    input instruction::ctrl_t instruction_in,
     input logic [31:0] program_counter_in,
     input logic [31:0] next_program_counter_in,
 
@@ -44,7 +44,7 @@
 
     output logic [31:0] source_data_reg_out,
     output logic [31:0] rd_data_reg_out,
-    output instruction::t instruction_reg_out,
+    output instruction::ctrl_t instruction_reg_out,
     output logic [31:0] program_counter_reg_out,
     output logic [31:0] next_program_counter_reg_out,
 
@@ -86,17 +86,9 @@
     // Instruction type detection
     //============================================================
 
-    assign load_op =
-        (instruction_in.op == op::LB )  ||
-        (instruction_in.op == op::LH )  ||
-        (instruction_in.op == op::LW )  ||
-        (instruction_in.op == op::LBU)  ||
-        (instruction_in.op == op::LHU);
+    assign load_op = instruction_in.flags.is_load;
 
-    assign store_op =
-        (instruction_in.op == op::SB) ||
-        (instruction_in.op == op::SH) ||
-        (instruction_in.op == op::SW);
+    assign store_op = instruction_in.flags.is_store;
 
     assign address = rd_data_in;
 
@@ -106,16 +98,11 @@
 
     always_comb begin
         misaligned = 1'b0;
-
-        case (instruction_in.op)
-            op::LH, op::LHU, op::SH:
-                misaligned = address[0];
-
-            op::LW, op::SW:
-                misaligned = |address[1:0];
-
-            default:;
-        endcase
+        if (instruction_in.flags.mem_size == 2'b01) begin
+            misaligned = address[0];
+        end else if (instruction_in.flags.mem_size == 2'b10) begin
+            misaligned = |address[1:0];
+        end
     end
 
     //============================================================
@@ -134,21 +121,15 @@
 
     // Byte select
     assign wb.sel =
-        ((instruction_in.op == op::LB)  || (instruction_in.op == op::LBU) ||
-        (instruction_in.op == op::SB)) ? (4'b0001 << address[1:0]) :
-
-        ((instruction_in.op == op::LH)  || (instruction_in.op == op::LHU) ||
-        (instruction_in.op == op::SH)) ? (address[1] ? 4'b1100 : 4'b0011) :
-
-        ((instruction_in.op == op::LW) || (instruction_in.op == op::SW)) ?
-
-        4'b1111 : 4'b0000;
+        (instruction_in.flags.mem_size == 2'b00) ? (4'b0001 << address[1:0]) :
+        (instruction_in.flags.mem_size == 2'b01) ? (address[1] ? 4'b1100 : 4'b0011) :
+        (instruction_in.flags.mem_size == 2'b10) ? 4'b1111 : 4'b0000;
 
     // Write data alignment
     assign wb.dat_mosi =
-        (instruction_in.op == op::SB) ? (source_data_in << (8 * address[1:0])) :
-        (instruction_in.op == op::SH) ? (source_data_in << (16 * address[1])) :
-        (instruction_in.op == op::SW) ? source_data_in : 32'h0;
+        (instruction_in.flags.mem_size == 2'b00) ? (source_data_in << (8 * address[1:0])) :
+        (instruction_in.flags.mem_size == 2'b01) ? (source_data_in << (16 * address[1])) :
+        (instruction_in.flags.mem_size == 2'b10) ? source_data_in : 32'h0;
 
 
     //============================================================
@@ -156,46 +137,27 @@
     //============================================================
 
     always_comb begin
-
         load_data = 32'b0;
-
         if (load_op && wb.ack && !wb.err) begin
-
-            case (instruction_in.op)
-
-                op::LB: begin
-                    case (address[1:0])
-                        0: load_data = {{24{wb.dat_miso[7]}}, wb.dat_miso[7:0]};
-                        1: load_data = {{24{wb.dat_miso[15]}}, wb.dat_miso[15:8]};
-                        2: load_data = {{24{wb.dat_miso[23]}}, wb.dat_miso[23:16]};
-                        3: load_data = {{24{wb.dat_miso[31]}}, wb.dat_miso[31:24]};
-                    endcase
+            if (instruction_in.flags.mem_size == 2'b00) begin
+                // Byte load
+                case (address[1:0])
+                    0: load_data = instruction_in.flags.load_unsigned ? {24'b0, wb.dat_miso[7:0]} : {{24{wb.dat_miso[7]}}, wb.dat_miso[7:0]};
+                    1: load_data = instruction_in.flags.load_unsigned ? {24'b0, wb.dat_miso[15:8]} : {{24{wb.dat_miso[15]}}, wb.dat_miso[15:8]};
+                    2: load_data = instruction_in.flags.load_unsigned ? {24'b0, wb.dat_miso[23:16]} : {{24{wb.dat_miso[23]}}, wb.dat_miso[23:16]};
+                    3: load_data = instruction_in.flags.load_unsigned ? {24'b0, wb.dat_miso[31:24]} : {{24{wb.dat_miso[31]}}, wb.dat_miso[31:24]};
+                endcase
+            end else if (instruction_in.flags.mem_size == 2'b01) begin
+                // Half-word load
+                if (address[1]) begin
+                    load_data = instruction_in.flags.load_unsigned ? {16'b0, wb.dat_miso[31:16]} : {{16{wb.dat_miso[31]}}, wb.dat_miso[31:16]};
+                end else begin
+                    load_data = instruction_in.flags.load_unsigned ? {16'b0, wb.dat_miso[15:0]} : {{16{wb.dat_miso[15]}}, wb.dat_miso[15:0]};
                 end
-
-                op::LBU: begin
-                    case (address[1:0])
-                        0: load_data = {24'b0, wb.dat_miso[7:0]};
-                        1: load_data = {24'b0, wb.dat_miso[15:8]};
-                        2: load_data = {24'b0, wb.dat_miso[23:16]};
-                        3: load_data = {24'b0, wb.dat_miso[31:24]};
-                    endcase
-                end
-
-                op::LH:
-                    load_data = address[1] ?
-                        {{16{wb.dat_miso[31]}}, wb.dat_miso[31:16]} :
-                        {{16{wb.dat_miso[15]}}, wb.dat_miso[15:0]};
-
-                op::LHU:
-                    load_data = address[1] ?
-                        {16'b0, wb.dat_miso[31:16]} :
-                        {16'b0, wb.dat_miso[15:0]};
-
-                default:
-                    load_data = wb.dat_miso;
-
-            endcase
-
+            end else begin
+                // Word load
+                load_data = wb.dat_miso;
+            end
         end
     end
 
@@ -226,7 +188,7 @@
 
         if (rst) begin
 
-            instruction_reg_out <= instruction::NOP;
+            instruction_reg_out <= instruction::NOP_CTRL;
 
             program_counter_reg_out <= 0;
             next_program_counter_reg_out <= 0;
@@ -288,17 +250,9 @@
     // Forwarding generation
     //============================================================
 
-    assign writes_rd = pipeline_forwards_valid && !(instruction_in.op inside {
-        op::SB, op::SH, op::SW,
-        op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU,
-        op::MRET
-    }); // If doesn't write, not to be forwarded
+    assign writes_rd = pipeline_forwards_valid && instruction_in.flags.writes_rd;
 
-    assign bypass_ready = pipeline_forwards_valid && !(instruction_in.op inside {
-        op::LB, op::LH, op::LW, op::LBU, op::LHU,
-        op::CSRRW, op::CSRRS, op::CSRRC,
-        op::CSRRWI, op::CSRRSI, op::CSRRCI
-    }) // Not ready for forwarding, STALL decode
+    assign bypass_ready = pipeline_forwards_valid && instruction_in.flags.bypass_ready
     || (load_op && !misaligned && wb.ack && !wb.err);
     
     assign forwarding_out.data_valid = bypass_ready;

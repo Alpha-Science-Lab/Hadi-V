@@ -36,7 +36,7 @@
     input logic [31:0]   rs2_data_in,
 
     // Decoded instruction
-    input instruction::t instruction_in,
+    input instruction::exe_t instruction_in,
 
     // PC of current instruction
     input logic [31:0]   program_counter_in,
@@ -53,7 +53,7 @@
     output logic [31:0]   rd_data_reg_out,
 
     // Instruction forwarded to next stage
-    output instruction::t instruction_reg_out,
+    output instruction::ctrl_t instruction_reg_out,
 
     // PC forwarded to next stage
     output logic [31:0]   program_counter_reg_out,
@@ -352,7 +352,7 @@
         // RISC-V requires instruction address alignment
         // ------------------------------------------------------
 
-        if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) 
+        if ((branch_taken || instruction_in.flags.is_jump) 
             && jump_address[1:0] != 2'b00) begin
                 status_forwards_next = pipeline_status::FETCH_MISALIGNED;
         end
@@ -432,8 +432,10 @@
             if(branch_taken) pred_update_out_d.taken = 1'b1;
             else pred_update_out_d.taken = 1'b0;
 
-            pred_update_out_d.valid = 1'b1;
-            pred_update_out_d.pc = program_counter_in;
+            pred_update_out_d.valid       = 1'b1;
+            pred_update_out_d.pc          = program_counter_in;
+            pred_update_out_d.old_counter = branch_pred_in.counter;
+            pred_update_out_d.btb_hit     = branch_pred_in.btb_hit;
         end
 
     end
@@ -447,7 +449,7 @@
     always_ff @(posedge clk) begin
 
         if (rst) begin
-            instruction_reg_out          <= instruction::NOP;
+            instruction_reg_out          <= instruction::NOP_CTRL;
             program_counter_reg_out      <= 32'b0;
             next_program_counter_reg_out <= 32'b0;
 
@@ -463,7 +465,10 @@
             // Freeze pipeline registers
         end
         else if (pipeline_forwards_valid) begin
-            instruction_reg_out          <= instruction_in;
+            instruction_reg_out.op         <= instruction_in.op;
+            instruction_reg_out.rd_address <= instruction_in.rd_address;
+            instruction_reg_out.csr        <= instruction_in.csr;
+            instruction_reg_out.flags      <= instruction_in.flags;
             program_counter_reg_out      <= program_counter_in;
             next_program_counter_reg_out <= next_pc;
 
@@ -492,17 +497,9 @@
     // Provides ALU results to earlier pipeline stages
     // ==========================================================
 
-    assign writes_rd = pipeline_forwards_valid && !(instruction_in.op inside {
-        op::SB, op::SH, op::SW,
-        op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU,
-        op::MRET
-    }); // If doesn't write, not to be forwarded
+    assign writes_rd = pipeline_forwards_valid && instruction_in.flags.writes_rd;
 
-    assign bypass_ready = pipeline_forwards_valid && !(instruction_in.op inside {
-        op::LB, op::LH, op::LW, op::LBU, op::LHU,
-        op::CSRRW, op::CSRRS, op::CSRRC,
-        op::CSRRWI, op::CSRRSI, op::CSRRCI
-    }); // Not ready for forwarding, STALL decode
+    assign bypass_ready = pipeline_forwards_valid && instruction_in.flags.bypass_ready;
 
     assign forwarding_out.data_valid = bypass_ready;
 

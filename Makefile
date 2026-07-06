@@ -20,9 +20,13 @@ OBJCOPY = riscv32-unknown-elf-objcopy
 # OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
 OBJDUMP = riscv32-unknown-elf-objdump
 
-# XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
-XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
+# Set VIVADO directly, or set XILINX_VIVADO to a Vivado installation root.
+XILINX_VIVADO ?=
+ifeq ($(strip $(XILINX_VIVADO)),)
+VIVADO ?= vivado
+else
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
+endif
 
 # Directories
 SIM_DIR = sim

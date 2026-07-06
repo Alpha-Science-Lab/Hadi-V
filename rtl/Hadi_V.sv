@@ -5,7 +5,10 @@
  * March 2026
  */
 
-module Hadi_V (
+module Hadi_V #(
+    parameter bit ENABLE_COUNTERS = 1,
+    parameter bit COUNTERS_64BIT = 1
+) (
     input logic clk,
     input logic rst,
 
@@ -16,6 +19,7 @@ module Hadi_V (
     input logic timer_interrupt_in
 );
     /* Internal wiring*/
+    logic [31:0] fetch_pc;
     logic [31:0] f_insto_insti_d;
     logic [31:0] f_progco_progci_d;
     pipeline_status::forwards_t f_statfo_statfi_d;
@@ -24,7 +28,7 @@ module Hadi_V (
     forwarding::t d_wbfi_fo_w;
     forwarding::t d_memfi_fo_m;
     forwarding::t d_exefi_fo_e;
-    instruction::t d_insto_insti_e;
+    instruction::exe_t d_insto_insti_e;
     logic [31:0] d_progco_progci_e;
     logic [31:0] d_rsoneo_rsonei_e;
     logic [31:0] d_rstwoo_rstwoi_e;
@@ -33,7 +37,7 @@ module Hadi_V (
     pipeline_status::forwards_t d_statfo_statfi_e;
     pipeline_status::backwards_t d_statbi_statbo_e;
     logic [31:0] d_jaddri_jaddro_e;
-    instruction::t e_insto_insti_m;
+    instruction::ctrl_t e_insto_insti_m;
     logic [31:0] e_progco_progci_m;
     logic [31:0] e_nxtprogco_nxtprogci_m;
     logic [31:0] e_rdo_rdi_m;
@@ -41,7 +45,7 @@ module Hadi_V (
     pipeline_status::forwards_t e_statfo_statfi_m;
     pipeline_status::backwards_t e_statbi_statbo_m;
     logic [31:0] e_jaddri_jaddro_m;
-    instruction::t m_insto_insti_w;
+    instruction::ctrl_t m_insto_insti_w;
     logic [31:0] m_progco_progci_w;
     logic [31:0] m_nxtprogco_nxtprogci_w;
     logic [31:0] m_rdo_rdi_w;
@@ -62,6 +66,7 @@ module Hadi_V (
 
         .instruction_reg_out(f_insto_insti_d), /* Output data*/
         .program_counter_reg_out(f_progco_progci_d),
+        .fetch_pc_out(fetch_pc),
 
         .status_forwards_out(f_statfo_statfi_d), /* Pipeline control*/
         .status_backwards_in(f_statbi_statbo_d),
@@ -75,6 +80,7 @@ module Hadi_V (
 
         .instruction_in(f_insto_insti_d), /* Inputs*/
         .program_counter_in(f_progco_progci_d),
+        .fetch_pc_in(fetch_pc),
         .exe_forwarding_in(d_exefi_fo_e),
         .mem_forwarding_in(d_memfi_fo_m),
         .wb_forwarding_in(d_wbfi_fo_w),
@@ -152,7 +158,10 @@ module Hadi_V (
     );
 
 
-    writeback_stage s_writeback(
+    writeback_stage #(
+        .ENABLE_COUNTERS(ENABLE_COUNTERS),
+        .COUNTERS_64BIT(COUNTERS_64BIT)
+    ) s_writeback(
         .clk(clk),
         .rst(rst),
 

@@ -59,7 +59,10 @@ module top_cpu(
     
     (* DONT_TOUCH = "TRUE" *)
     
-    Hadi_V cpu_i (
+    Hadi_V #(
+        .ENABLE_COUNTERS(1'b0),
+        .COUNTERS_64BIT(1'b0)
+    ) cpu_i (
         .clk(clk),
         .rst(1'b0),
 

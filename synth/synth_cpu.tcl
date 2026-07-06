@@ -69,9 +69,10 @@ read_xdc $ROOT/synth/cpu.xdc
 
 synth_design \
     -top top_cpu \
-    -part xc7a35tcpg236-1
+    -part xc7a35tcpg236-1 \
+    -directive AreaOptimized_high
 
-opt_design
+opt_design -directive ExploreArea
 
 # -----------------------------------------------------------------------------
 # Reports (Post-Synthesis)

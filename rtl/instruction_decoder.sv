@@ -71,65 +71,21 @@ module instruction_decoder (
     
     always_comb begin
         csr_valid = 1'b0;
-    
-        unique case (1'b1)
-    
-            // Machine Information Registers
-            (csr_addr >= csr::MVENDORID  &&
-             csr_addr <= csr::MCONFIGPTR):
-    
+        unique case (csr_addr)
+            csr::MSTATUS,
+            csr::MIE,
+            csr::MIP,
+            csr::MTVEC,
+            csr::MEPC,
+            csr::MCAUSE,
+            csr::MSCRATCH,
+            csr::MCYCLE,
+            csr::MCYCLEH,
+            csr::MINSTRET,
+            csr::MINSTRETH:
                 csr_valid = 1'b1;
-    
-            // Standard machine CSRs
-            (csr_addr == csr::MSTATUS)     ||
-            (csr_addr == csr::MISA)        ||
-            (csr_addr == csr::MEDELEG)     ||
-            (csr_addr == csr::MIDELEG)     ||
-            (csr_addr == csr::MIE)         ||
-            (csr_addr == csr::MTVEC)       ||
-            (csr_addr == csr::MCOUNTEREN)  ||
-            (csr_addr == csr::MSTATUSH)    ||
-            (csr_addr == csr::MSCRATCH)    ||
-            (csr_addr == csr::MEPC)        ||
-            (csr_addr == csr::MCAUSE)      ||
-            (csr_addr == csr::MTVAL)       ||
-            (csr_addr == csr::MIP):
-    
-                csr_valid = 1'b1;
-    
-            // Counters
-            (csr_addr >= csr::MCYCLE &&
-             csr_addr <= csr::MINSTRET):
-    
-                csr_valid = 1'b1;
-    
-            // High counters
-            (csr_addr >= csr::MCYCLEH &&
-             csr_addr <= csr::MINSTRETH):
-    
-                csr_valid = 1'b1;
-    
-            // HPM counters
-            (csr_addr >= csr::MHPMCOUNTER3 &&
-             csr_addr <= csr::MHPMCOUNTER31):
-    
-                csr_valid = 1'b1;
-    
-            // HPM counter high
-            (csr_addr >= csr::MHPMCOUNTER3H &&
-             csr_addr <= csr::MHPMCOUNTER31H):
-    
-                csr_valid = 1'b1;
-    
-            // HPM events
-            (csr_addr >= csr::MHPMEVENT3 &&
-             csr_addr <= csr::MHPMEVENT31):
-    
-                csr_valid = 1'b1;
-    
             default:
                 csr_valid = 1'b0;
-    
         endcase
     end
 

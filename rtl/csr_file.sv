@@ -5,8 +5,10 @@
 * April 2026
 */
 
-module csr_file (
-
+module csr_file #(
+    parameter bit ENABLE_COUNTERS = 1,
+    parameter bit COUNTERS_64BIT = 1
+) (
     input  logic clk,
     input  logic rst,
 
@@ -46,9 +48,6 @@ module csr_file (
     bit [31:0] mstatus, mie, mip;
     bit [31:0] mtvec, mepc, mcause, mscratch;
 
-    bit [63:0] mcycle, minstret;
-    bit [63:0] mcycle_next, minstret_next;
-
     logic mie_eff, meie_eff, mtie_eff;
     bit trap_history;
 
@@ -76,39 +75,88 @@ module csr_file (
     end
 
     // ============================================================
-    // PERFORMANCE COUNTERS
+    // PERFORMANCE COUNTERS (PARAMETERIZED)
     // ============================================================
 
-    always_comb begin
-        // Default increments
-        mcycle_next   = mcycle + 1;
-        minstret_next = minstret;
+    logic [63:0] mcycle_read, minstret_read;
 
-        if (instruction_retired)
-            minstret_next = minstret + 1;
+    generate
+        if (ENABLE_COUNTERS) begin : gen_counters
+            if (COUNTERS_64BIT) begin : gen_64bit
+                bit [63:0] mcycle, minstret;
+                bit [63:0] mcycle_next, minstret_next;
 
-        // CSR overwrite (takes priority over increment)
-        if (csr_write_en) begin
-            unique case (csr_addr)
+                always_comb begin
+                    mcycle_next   = mcycle + 1;
+                    minstret_next = minstret;
+                    if (instruction_retired)
+                        minstret_next = minstret + 1;
 
-                csr::MCYCLE: begin
-                    mcycle_next[31:0] = csr_write_data;
+                    if (csr_write_en) begin
+                        unique case (csr_addr)
+                            csr::MCYCLE   : mcycle_next[31:0] = csr_write_data;
+                            csr::MCYCLEH  : mcycle_next[63:32] = csr_write_data;
+                            csr::MINSTRET : minstret_next[31:0] = csr_write_data;
+                            csr::MINSTRETH: minstret_next[63:32] = csr_write_data;
+                            default: ;
+                        endcase
+                    end
                 end
 
-                csr::MCYCLEH:
-                    mcycle_next[63:32] = csr_write_data;
-
-                csr::MINSTRET: begin
-                    minstret_next[31:0] = csr_write_data;
+                always_ff @(posedge clk) begin
+                    if (rst) begin
+                        mcycle   <= '0;
+                        minstret <= '0;
+                    end else begin
+                        mcycle   <= mcycle_next;
+                        minstret <= minstret_next;
+                    end
                 end
 
-                csr::MINSTRETH:
-                    minstret_next[63:32] = csr_write_data;
+                assign mcycle_read = mcycle;
+                assign minstret_read = minstret;
 
-                default: ;
-            endcase
+            end else begin : gen_32bit
+                bit [31:0] mcycle, minstret;
+                bit [31:0] mcycle_next, minstret_next;
+
+                always_comb begin
+                    mcycle_next   = mcycle + 1;
+                    minstret_next = minstret;
+                    if (instruction_retired)
+                        minstret_next = minstret + 1;
+
+                    if (csr_write_en) begin
+                        unique case (csr_addr)
+                            csr::MCYCLE   : mcycle_next = csr_write_data;
+                            csr::MINSTRET : minstret_next = csr_write_data;
+                            default: ;
+                        endcase
+                    end
+                end
+
+                always_ff @(posedge clk) begin
+                    if (rst) begin
+                        mcycle   <= '0;
+                        minstret <= '0;
+                    end else begin
+                        mcycle   <= mcycle_next;
+                        minstret <= minstret_next;
+                    end
+                end
+
+                assign mcycle_read = {32'd0, mcycle};
+                assign minstret_read = {32'd0, minstret};
+            end
+        end else begin : gen_no_counters
+            assign mcycle_read = '0;
+            assign minstret_read = '0;
         end
-    end
+    endgenerate
+
+    // ============================================================
+    // TRAP EFFECTS & STATUS CHECKS
+    // ============================================================
 
     always_comb begin
         meie_eff = mie[11];
@@ -150,13 +198,7 @@ module csr_file (
             mcause   <= '0;
             mscratch <= '0;
 
-            mcycle   <= '0;
-            minstret <= '0;
-
         end else begin
-
-            mcycle   <= mcycle_next;
-            minstret <= minstret_next;
 
             // ----------------------------------------------------
             // TRAP ENTRY (HIGHEST PRIORITY)
@@ -179,8 +221,6 @@ module csr_file (
                 mie[7] <= mtie_eff;
 
                 trap_history <= 1'b1;
-
-                // $display("||||| TRAP @%0d |||||\n",$time);
             end
 
             // ----------------------------------------------------
@@ -191,8 +231,6 @@ module csr_file (
                 mstatus[7] <= 1'b1;       // MPIE = 1
 
                 trap_history <= 1'b0;
-                
-                // $display("||||| MRET @%0d |||||\n",$time);
             end
 
             // ----------------------------------------------------
@@ -241,10 +279,10 @@ module csr_file (
             csr::MCAUSE   : csr_read_data = mcause;
             csr::MSCRATCH : csr_read_data = mscratch;
 
-            csr::MCYCLE   : csr_read_data = mcycle[31:0];
-            csr::MCYCLEH  : csr_read_data = mcycle[63:32];
-            csr::MINSTRET : csr_read_data = minstret[31:0];
-            csr::MINSTRETH: csr_read_data = minstret[63:32];
+            csr::MCYCLE   : csr_read_data = mcycle_read[31:0];
+            csr::MCYCLEH  : csr_read_data = mcycle_read[63:32];
+            csr::MINSTRET : csr_read_data = minstret_read[31:0];
+            csr::MINSTRETH: csr_read_data = minstret_read[63:32];
 
             default: ;
         endcase

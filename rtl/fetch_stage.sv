@@ -15,6 +15,7 @@ module fetch_stage (
     //  Output data
     output logic [31:0] instruction_reg_out,
     output logic [31:0] program_counter_reg_out,
+    output logic [31:0] fetch_pc_out,
 
     // Pipeline control
     output pipeline_status::forwards_t  status_forwards_out,
@@ -24,6 +25,8 @@ module fetch_stage (
 
     // Program Counter register
     logic [31:0] pc;
+
+    assign fetch_pc_out = pc;
 
     // Wishbone control signals
     assign wb.cyc      = !rst && 1'b1;

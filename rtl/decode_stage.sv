@@ -36,6 +36,9 @@
     // Program counter corresponding to instruction_in
     input logic [31:0] program_counter_in,
 
+    // Fetch PC for BRAM BTB read
+    input logic [31:0] fetch_pc_in,
+
     //============================================================
     // Forwarding inputs from later pipeline stages
     //============================================================
@@ -61,7 +64,7 @@
     output logic [31:0] program_counter_reg_out,
 
     // Fully decoded instruction structure
-    output instruction::t instruction_reg_out,
+    output instruction::exe_t instruction_reg_out,
 
     //============================================================
     // Branch predictor signals
@@ -125,6 +128,76 @@
     // Branch predictor out
     logic pred_jump_valid;
     branch_pred_pkg::pred_t pred_out_d;
+
+    // Control flags decoding
+    instruction::ctrl_flags_t decoded_flags;
+
+    always_comb begin
+        // default values
+        decoded_flags.writes_rd = 1'b0;
+        decoded_flags.bypass_ready = 1'b0;
+        decoded_flags.is_load = 1'b0;
+        decoded_flags.is_store = 1'b0;
+        decoded_flags.is_branch = 1'b0;
+        decoded_flags.is_jump = 1'b0;
+        decoded_flags.is_csr = 1'b0;
+        decoded_flags.load_unsigned = 1'b0;
+        decoded_flags.mem_size = 2'b00;
+
+        // writes_rd
+        decoded_flags.writes_rd = !(decoded_instruction.op inside {
+            op::SB, op::SH, op::SW,
+            op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU,
+            op::MRET, op::WFI, op::FENCE, op::ILLEGAL
+        });
+
+        // bypass_ready
+        decoded_flags.bypass_ready = !(decoded_instruction.op inside {
+            op::LB, op::LH, op::LW, op::LBU, op::LHU,
+            op::CSRRW, op::CSRRS, op::CSRRC,
+            op::CSRRWI, op::CSRRSI, op::CSRRCI
+        });
+
+        // is_load
+        decoded_flags.is_load = (decoded_instruction.op inside {
+            op::LB, op::LH, op::LW, op::LBU, op::LHU
+        });
+
+        // is_store
+        decoded_flags.is_store = (decoded_instruction.op inside {
+            op::SB, op::SH, op::SW
+        });
+
+        // is_branch
+        decoded_flags.is_branch = (decoded_instruction.op inside {
+            op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU
+        });
+
+        // is_jump
+        decoded_flags.is_jump = (decoded_instruction.op inside {
+            op::JAL, op::JALR
+        });
+
+        // is_csr
+        decoded_flags.is_csr = (decoded_instruction.op inside {
+            op::CSRRW, op::CSRRS, op::CSRRC,
+            op::CSRRWI, op::CSRRSI, op::CSRRCI
+        });
+
+        // load_unsigned
+        decoded_flags.load_unsigned = (decoded_instruction.op inside {
+            op::LBU, op::LHU
+        });
+
+        // mem_size
+        if (decoded_instruction.op inside {op::LB, op::LBU, op::SB}) begin
+            decoded_flags.mem_size = 2'b00;
+        end else if (decoded_instruction.op inside {op::LH, op::LHU, op::SH}) begin
+            decoded_flags.mem_size = 2'b01;
+        end else if (decoded_instruction.op inside {op::LW, op::SW}) begin
+            decoded_flags.mem_size = 2'b10;
+        end
+    end
 
     // Determine jump address
     always_comb begin
@@ -191,6 +264,7 @@
     dyn_branch_pred branch_pred(
         .clk(clk),
 
+        .fetch_pc_in(fetch_pc_in),
         .program_counter_in(program_counter_in),
         .instruction_in(decoded_instruction),
 
@@ -395,7 +469,7 @@
     always_ff @(posedge clk) begin
 
         if (rst) begin
-            instruction_reg_out <= '0;
+            instruction_reg_out <= instruction::NOP_EXE;
             program_counter_reg_out <= '0;
             rs1_data_reg_out <= '0;
             rs2_data_reg_out <= '0;
@@ -410,8 +484,15 @@
 
                 if (next_status_forwards == pipeline_status::VALID) begin
                     // Transfer decoded instruction
-                    instruction_reg_out <= decoded_instruction inside {op::FENCE, op::WFI}? 
-                        instruction::NOP : decoded_instruction;
+                    if (decoded_instruction.op inside {op::FENCE, op::WFI}) begin
+                        instruction_reg_out <= instruction::NOP_EXE;
+                    end else begin
+                        instruction_reg_out.op         <= decoded_instruction.op;
+                        instruction_reg_out.rd_address <= decoded_instruction.rd_address;
+                        instruction_reg_out.csr        <= decoded_instruction.csr;
+                        instruction_reg_out.immediate  <= decoded_instruction.immediate;
+                        instruction_reg_out.flags      <= decoded_flags;
+                    end
                     // Transfer PC
                     program_counter_reg_out <= program_counter_in;
                     // Transfer operand values
@@ -421,7 +502,7 @@
                     branch_pred_out  <= pred_out_d; /* Branch prediction*/
 
                 end else begin
-                    instruction_reg_out <= '0;
+                    instruction_reg_out <= instruction::NOP_EXE;
                     // Memory address corresponding to the error
                     program_counter_reg_out <= program_counter_in;
                     rs1_data_reg_out <= '0;
