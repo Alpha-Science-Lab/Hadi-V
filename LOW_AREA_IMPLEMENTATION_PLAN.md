@@ -4,7 +4,7 @@
 
 This plan targets lower LUT and FF usage for the Hadi-V CPU and full MCU build by moving suitable storage into BRAM, reducing always-on CSR state, simplifying decode logic, and compacting pipeline control.
 
-Current CPU-only utilization baseline from `build/synth_cpu/reports/cpu_utilization.rpt`:
+Current CPU-only utilization baseline
 
 - LUTs: 2947 total, 2595 logic, 352 LUTRAM
 - FFs: 876
@@ -308,3 +308,28 @@ Compare utilization after each phase against the saved baseline.
 - RV32I is the default target; RV32M/DSP work is deferred unless `M_EXT=1` is required.
 - The architectural register file should remain distributed RAM because it currently costs only about 10 LUTs.
 - The VGA framebuffer should remain as-is because it already uses explicit BRAM primitives.
+
+## After Optimization
+
+1. Utilization by Hierarchy
+
+---------------------------
+
++---------------------+-----------------+------------+------------+---------+------+-----+--------+--------+------------+
+|       Instance      |      Module     | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP Blocks |
++---------------------+-----------------+------------+------------+---------+------+-----+--------+--------+------------+
+| top_cpu             |           (top) |       1977 |       1889 |      88 |    0 | 783 |      0 |      1 |          0 |
+|   (top_cpu)         |           (top) |          0 |          0 |       0 |    0 |   0 |      0 |      0 |          0 |
+|   cpu_i             |          Hadi_V |       1977 |       1889 |      88 |    0 | 783 |      0 |      1 |          0 |
+|     (cpu_i)         |          Hadi_V |         89 |          1 |      88 |    0 |   0 |      0 |      0 |          0 |
+|     s_decode        |    decode_stage |       1076 |       1076 |       0 |    0 | 206 |      0 |      1 |          0 |
+|       (s_decode)    |    decode_stage |       1054 |       1054 |       0 |    0 | 168 |      0 |      0 |          0 |
+|       branch_pred   | dyn_branch_pred |         14 |         14 |       0 |    0 |  32 |      0 |      1 |          0 |
+|       rf            |   register_file |          8 |          8 |       0 |    0 |   6 |      0 |      0 |          0 |
+|     s_execute       |   execute_stage |        143 |        143 |       0 |    0 | 195 |      0 |      0 |          0 |
+|     s_fetch         |     fetch_stage |        426 |        426 |       0 |    0 |  98 |      0 |      0 |          0 |
+|     s_memory        |    memory_stage |        210 |        210 |       0 |    0 | 153 |      0 |      0 |          0 |
+|     s_writeback     | writeback_stage |         39 |         39 |       0 |    0 | 131 |      0 |      0 |          0 |
+|       csr_file_inst |        csr_file |         39 |         39 |       0 |    0 | 131 |      0 |      0 |          0 |
++---------------------+-----------------+------------+------------+---------+------+-----+--------+--------+------------+
+- Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
