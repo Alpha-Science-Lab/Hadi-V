@@ -1,8 +1,8 @@
-# Low-Area FPGA Implementation Plan
+# Resource Optimized Implementation on FPGA
 
 ## Summary
 
-This plan targets lower LUT and FF usage for the Hadi-V CPU and full MCU build by moving suitable storage into BRAM, reducing always-on CSR state, simplifying decode logic, and compacting pipeline control.
+This plan targets lower LUT and FF usage for the Hadi-V CPU by moving suitable storage into BRAM, reducing always-on CSR state, simplifying decode logic, and compacting pipeline control.
 
 Current CPU-only utilization baseline
 
@@ -18,8 +18,6 @@ Recommended implementation order:
 2. Parameterize or disable CSR performance counters.
 3. Simplify CSR legality decode.
 4. Compact the carried pipeline control packet.
-5. Force full-system main RAM to BRAM.
-6. Add DSP/iterative RV32M support only if `M_EXT=1` is required.
 
 ## Phase 1: Branch Predictor BTB to BRAM
 
@@ -199,65 +197,6 @@ Acceptance criteria:
 - FF count decreases across pipeline stage hierarchy.
 - No new combinational loops or timing failures.
 
-## Phase 5: Full MCU Main RAM to BRAM
-
-Target file: `lib/wishbone/wishbone_ram.sv`
-
-Current issue:
-
-- Full MCU memory should be explicitly guided toward BRAM.
-- VGA memory already instantiates `RAMB36E1`, so it should not be changed.
-
-Implementation:
-
-- Update the main Wishbone RAM declaration:
-
-  ```systemverilog
-  (* ram_style = "block", ram_decomp = "power" *)
-  logic [31:0] memory [SIZE];
-  ```
-
-- Keep byte write-enable behavior unchanged.
-- Confirm Vivado infers BRAM for full-system synthesis.
-
-Expected result:
-
-- Lower LUT usage in full MCU builds.
-- BRAM usage increases as expected.
-
-Acceptance criteria:
-
-- Full synthesis reports show main RAM using BRAM.
-- Existing software image still loads through `init.mem`.
-- VGA BRAM implementation remains unchanged.
-
-## Phase 6: Optional RV32M DSP and Divider Work
-
-Target file: `rtl/execute_stage.sv`
-
-Scope:
-
-- Only apply this phase if `M_EXT=1` is required.
-- Current default is `M_EXT=0`, so DSP optimization is not needed for the present CPU report.
-
-Implementation:
-
-- Add `(* use_dsp = "yes" *)` around the multiplier datapath.
-- Avoid computing signed, unsigned, and mixed signed multiplies in parallel when one shared multiplier can be selected.
-- Replace single-cycle `/` and `%` operations with a small iterative divider.
-- Stall execute or the pipeline while the divider is active.
-
-Expected result:
-
-- RV32M LUT usage decreases.
-- DSP usage increases for multiply.
-- Divide/remainder become multi-cycle but area-efficient.
-
-Acceptance criteria:
-
-- `test/asm/mext` and `test/asm/mext_stress` pass when `M_EXT=1`.
-- DSP usage appears in synthesis reports.
-- Timing remains clean.
 
 ## Verification Plan
 
