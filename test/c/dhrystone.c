@@ -2,15 +2,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-/* =========================================================================
- * Hadi-V Hardware and System Helpers
- * ========================================================================= */
 
-#define UART_BUFFER_ADDRESS           (((volatile uint8_t  *) ((0x00084000    ) << 2)) + 0)
-#define UART_TX_STATUS_ADDRESS        (((volatile uint8_t  *) ((0x00084000    ) << 2)) + 3)
-#define UART_TX_STATUS_IDX_EMPTY  2
-
-#define TEST_ADDRESS                  (((volatile uint32_t *) ((0x00120000    ) << 2)))
 
 int putchar(int c) {
     return c;
