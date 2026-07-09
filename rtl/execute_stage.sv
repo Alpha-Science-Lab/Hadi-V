@@ -102,6 +102,45 @@
 
     logic [31:0] source_data;         // Data forwarded for store/CSR
 
+`ifdef M_EXT
+
+    instruction::m_state_t m_state;
+
+    logic        m_busy;
+    logic        m_done;
+    logic        m_start;
+    logic        m_inst;
+    logic        m_stall;
+
+    logic [31:0] m_result;
+
+    logic [5:0]  counter;
+
+    // Multiplier datapath
+    logic [63:0] product;
+    logic [63:0] multiplicand;
+    logic [31:0] multiplier;
+
+    // Divider datapath (implement algorithm here)
+    logic [31:0] quotient;
+    logic [32:0] remainder;
+    logic [31:0] divisor;
+
+    assign m_busy = (m_state != instruction::M_IDLE);
+
+    assign m_inst = instruction_in.op inside {
+        op::MUL,
+        op::MULH,
+        op::MULHSU,
+        op::MULHU,
+        op::DIV,
+        op::DIVU,
+        op::REM,
+        op::REMU
+    };
+
+`endif //M_EXT
+
     // Pipeline control helpers
     pipeline_status::forwards_t  status_forwards_next;
     pipeline_status::backwards_t local_backwards_status;
@@ -114,19 +153,12 @@
 
     // Wire that connects to flop
     branch_pred_pkg::update_t pred_update_out_d;
-    // Multiplication temp registers
-    logic signed [63:0] mul_ss;
-    logic signed [63:0] mul_su;
-    logic        [63:0] mul_uu;
+    
 
     // ==========================================================
     // ALU + Control Logic
     // Pure combinational logic
     // ==========================================================
-
-    assign mul_ss = $signed(rs1_data_in) * $signed(rs2_data_in);
-    assign mul_su = $signed(rs1_data_in) * $signed({1'b0, rs2_data_in});
-    assign mul_uu = rs1_data_in * rs2_data_in;
 
     always_comb begin
 
@@ -241,86 +273,6 @@
             op::OR:   alu_result = rs1_data_in | rs2_data_in;
             op::AND:  alu_result = rs1_data_in & rs2_data_in;
 
-            
-`ifdef M_EXT
-            // ------------------RV32M Extension-----------------
-
-            op::MUL:
-                alu_result = mul_ss[31:0];
-
-            op::MULH:
-                alu_result = mul_ss[63:32];
-
-            op::MULHSU:
-                alu_result = mul_su[63:32];
-
-            op::MULHU:
-                alu_result = mul_uu[63:32];
-
-            // Signed division
-            op::DIV: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = 32'hFFFF_FFFF;
-
-                // Signed overflow
-                else if ((rs1_data_in == 32'h8000_0000) &&
-                         (rs2_data_in == 32'hFFFF_FFFF))
-                    alu_result = 32'h8000_0000;
-
-                else
-                    alu_result =
-                        $signed(rs1_data_in) / $signed(rs2_data_in);
-
-            end
-
-            // Unsigned division
-            op::DIVU: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = 32'hFFFF_FFFF;
-
-                else
-                    alu_result = rs1_data_in / rs2_data_in;
-
-            end
-
-            // Signed remainder
-            op::REM: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = rs1_data_in;
-
-                // Signed overflow
-                else if ((rs1_data_in == 32'h8000_0000) &&
-                         (rs2_data_in == 32'hFFFF_FFFF))
-                    alu_result = 32'b0;
-
-                else
-                    alu_result =
-                        $signed(rs1_data_in) % $signed(rs2_data_in);
-
-            end
-
-            // Unsigned remainder
-            op::REMU: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = rs1_data_in;
-
-                else
-                    alu_result = rs1_data_in % rs2_data_in;
-
-            end
-
-
-            // -----------------RV32M Extension------------------
-`endif
-
             // --------------------------------------------------
             // CSR instructions
             // --------------------------------------------------
@@ -336,7 +288,27 @@
 
         endcase
 
+`ifdef M_EXT
+        // --------------------RV32M Extension-------------------
 
+        if (m_inst) begin
+
+            if (!m_busy && !m_done)
+                m_start = 1'b1;
+
+            m_stall = !m_done;
+
+            if (m_done)
+                alu_result = m_result;
+            else
+                alu_result = '0;
+
+        end
+        
+        // -------------------RV32M Extension--------------------
+
+`endif //M_EXT
+        
         // ------------------------------------------------------
         // Branch target calculation
         // ------------------------------------------------------
@@ -410,10 +382,15 @@
             // Later stage overrides this stage!
             status_backwards_out = status_backwards_in; // STALL from MEM or JUMP from WB
             jump_address_backwards_out = jump_address_backwards_in;
-
         end else begin
             status_backwards_out = local_backwards_status;
             jump_address_backwards_out = jump_address;
+
+`ifdef M_EXT
+            if (m_stall) 
+                status_backwards_out = pipeline_status::STALL;
+            
+`endif //M_EXT
         end
     end
 
@@ -439,6 +416,187 @@
     end
 
 
+`ifdef M_EXT
+
+    always_ff @(posedge clk) begin
+
+        if (rst) begin
+
+            m_state <= instruction::M_IDLE;
+            m_done  <= 1'b0;
+
+        end
+
+        else begin
+
+            m_done <= 1'b0;
+
+            case (m_state)
+
+            //----------------------------------------------------
+            // IDLE
+            //----------------------------------------------------
+
+            instruction::M_IDLE: begin
+
+                if (m_start) begin
+
+                    // TODO: Initialize all vars
+
+                    case (instruction_in.op)
+
+                    //============================================
+                    // MULTIPLY
+                    //============================================
+
+                    op::MUL,
+                    op::MULH,
+                    op::MULHU,
+                    op::MULHSU: begin
+
+                        // TODO: Additional initialization
+
+                        case (instruction_in.op)
+
+                        //----------------------------------------
+                        // MUL, MULHU : unsigned × unsigned
+                        //----------------------------------------
+                        op::MUL,
+                        op::MULHU: begin
+
+                            // TODO: Operand process
+
+                        end
+
+                        //----------------------------------------
+                        // MULH : signed × signed
+                        //----------------------------------------
+                        op::MULH: begin
+
+                            // TODO: Operand process
+
+                        end
+
+                        //----------------------------------------
+                        // MULHSU : signed × unsigned
+                        //----------------------------------------
+                        op::MULHSU: begin
+
+                            // TODO: Operand process
+
+                        end
+
+                        endcase
+
+                        m_state <= instruction::M_MUL;
+
+                    end
+
+                    //============================================
+                    // DIVIDE
+                    //============================================
+                    
+                    op::DIV,
+                    op::DIVU,
+                    op::REM,
+                    op::REMU: begin
+
+                        // Divide by zero
+                        if (rs2_data_in == 32'd0) begin
+
+                            case (instruction_in.op)
+
+                            op::DIV,
+                            op::DIVU:
+                                m_result <= 32'hFFFF_FFFF;
+
+                            op::REM,
+                            op::REMU:
+                                m_result <= rs1_data_in;
+
+                            endcase
+
+                            m_done <= 1'b1;
+
+                        end
+
+                        // Signed overflow: INT_MIN / -1
+                        else if ((instruction_in.op == op::DIV ||
+                                instruction_in.op == op::REM) &&
+                                rs1_data_in == 32'h8000_0000 &&
+                                rs2_data_in == 32'hFFFF_FFFF) begin
+
+                            case (instruction_in.op)
+
+                            op::DIV:
+                                m_result <= 32'h8000_0000;
+
+                            op::REM:
+                                m_result <= 32'd0;
+
+                            endcase
+
+                            m_done <= 1'b1;
+
+                        end
+
+                        // Start iterative divider
+                        else begin
+
+                            // TODO: Additional Initialization
+
+                            // TODO: operand process
+
+                            m_state <= instruction::M_DIV;
+
+                        end
+
+                    end
+
+                    endcase
+
+                end
+
+            end
+
+            //----------------------------------------------------
+            // MULTIPLIER
+            //----------------------------------------------------
+
+            instruction::M_MUL: begin
+
+                // TODO: Calculation \
+                // Both Signed and Unsigned multiplication
+
+                m_done  <= 1'b1;
+                m_state <= instruction::M_IDLE;
+
+            end
+            
+            //----------------------------------------------------
+            // DIVIDER
+            //----------------------------------------------------
+
+            instruction::M_DIV: begin
+
+                // TODO: Calculation \
+                // Actual division or remainder operation \
+                // (use restoring division)
+
+                m_done  <= 1'b1;
+                m_state <= instruction::M_IDLE;
+
+            end
+
+            endcase
+
+        end
+
+    end
+
+`endif //M_EXT
+
+
     // ==========================================================
     // Pipeline Registers
     // Update only when pipeline not stalled
@@ -459,7 +617,7 @@
         else if (status_backwards_in == pipeline_status::JUMP) begin
             status_forwards_out <= pipeline_status::BUBBLE;
         end
-        else if (status_backwards_in == pipeline_status::STALL) begin
+        else if (status_backwards_in == pipeline_status::STALL `ifdef M_EXT || m_stall `endif) begin
             // Freeze pipeline registers
         end
         else if (pipeline_forwards_valid) begin
@@ -504,7 +662,7 @@
         op::CSRRWI, op::CSRRSI, op::CSRRCI
     }); // Not ready for forwarding, STALL decode
 
-    assign forwarding_out.data_valid = bypass_ready;
+    assign forwarding_out.data_valid = bypass_ready `ifdef M_EXT && !m_stall `endif;
 
     assign forwarding_out.data = alu_result;
 

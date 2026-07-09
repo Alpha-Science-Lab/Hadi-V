@@ -28,9 +28,9 @@ package clk_params;
     //   VCO Frequency:     100 MHz / CLK_DIV * CLK_MUL                  (must be between 600 MHz and 1200 MHz)
     //   Output Frequency: (100 MHz / CLK_DIV * CLK_MUL) / CLK_DIV_#     (must be between 4.69 MHz and 800 MHz)
 
-    localparam real MMCM_MUL   = 16.000;   // 2.000 - 64.000  (steps of 0.125)
+    localparam real MMCM_MUL   = 15.000;   // 2.000 - 64.000  (steps of 0.125)
     localparam int  MMCM_DIV   = 2;        // 1     - 56      (steps of 1)
-    localparam real MMCM_DIV_0 = 96.000;   // 1.000 - 128.000 (steps of 0.125)
+    localparam real MMCM_DIV_0 = 12.000;   // 1.000 - 128.000 (steps of 0.125)
 
     localparam real SYS_CLK_FREQUENCY_MHZ = (INPUT_CLK_FREQUENCY_MHZ / MMCM_DIV * MMCM_MUL) / MMCM_DIV_0;
     localparam real SYS_CLK_PERIOD_NS     = 1000.000 / SYS_CLK_FREQUENCY_MHZ;
