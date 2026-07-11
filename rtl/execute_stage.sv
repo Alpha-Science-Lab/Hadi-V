@@ -126,6 +126,17 @@
     logic [32:0] remainder;
     logic [31:0] divisor;
 
+    // Sign tracking registers
+    logic        sign_prod;
+    logic        sign_quot;
+    logic        sign_rem;
+
+    // Absolute values of operands for signed operations
+    logic [31:0] op_a_abs_signed;
+    logic [31:0] op_b_abs_signed;
+    assign op_a_abs_signed = rs1_data_in[31] ? -rs1_data_in : rs1_data_in;
+    assign op_b_abs_signed = rs2_data_in[31] ? -rs2_data_in : rs2_data_in;
+
     assign m_busy = (m_state != instruction::M_IDLE);
 
     assign m_inst = instruction_in.op inside {
@@ -172,6 +183,12 @@
 
         // Propagate incoming status
         status_forwards_next = status_forwards_in;
+
+`ifdef M_EXT
+        m_start = 1'b0;
+        m_stall = 1'b0;
+`endif
+        local_backwards_status = pipeline_status::READY;
 
 
         // ------------------------------------------------------
@@ -422,8 +439,19 @@
 
         if (rst) begin
 
-            m_state <= instruction::M_IDLE;
-            m_done  <= 1'b0;
+            m_state   <= instruction::M_IDLE;
+            m_done    <= 1'b0;
+            m_result  <= 32'b0;
+            counter   <= 6'd0;
+            product   <= 64'd0;
+            multiplicand <= 64'd0;
+            multiplier   <= 32'd0;
+            quotient  <= 32'd0;
+            remainder <= 33'd0;
+            divisor   <= 32'd0;
+            sign_prod <= 1'b0;
+            sign_quot <= 1'b0;
+            sign_rem  <= 1'b0;
 
         end
 
@@ -441,8 +469,6 @@
 
                 if (m_start) begin
 
-                    // TODO: Initialize all vars
-
                     case (instruction_in.op)
 
                     //============================================
@@ -454,7 +480,8 @@
                     op::MULHU,
                     op::MULHSU: begin
 
-                        // TODO: Additional initialization
+                        counter <= 6'd32;
+                        product <= 64'd0;
 
                         case (instruction_in.op)
 
@@ -463,29 +490,30 @@
                         //----------------------------------------
                         op::MUL,
                         op::MULHU: begin
-
-                            // TODO: Operand process
-
+                            sign_prod    <= 1'b0;
+                            multiplicand <= {32'd0, rs1_data_in};
+                            multiplier   <= rs2_data_in;
                         end
 
                         //----------------------------------------
                         // MULH : signed × signed
                         //----------------------------------------
                         op::MULH: begin
-
-                            // TODO: Operand process
-
+                            sign_prod    <= rs1_data_in[31] ^ rs2_data_in[31];
+                            multiplicand <= {32'd0, op_a_abs_signed};
+                            multiplier   <= op_b_abs_signed;
                         end
 
                         //----------------------------------------
                         // MULHSU : signed × unsigned
                         //----------------------------------------
                         op::MULHSU: begin
-
-                            // TODO: Operand process
-
+                            sign_prod    <= rs1_data_in[31];
+                            multiplicand <= {32'd0, op_a_abs_signed};
+                            multiplier   <= rs2_data_in;
                         end
 
+                        default: ;
                         endcase
 
                         m_state <= instruction::M_MUL;
@@ -495,7 +523,7 @@
                     //============================================
                     // DIVIDE
                     //============================================
-                    
+
                     op::DIV,
                     op::DIVU,
                     op::REM,
@@ -514,6 +542,7 @@
                             op::REMU:
                                 m_result <= rs1_data_in;
 
+                            default: ;
                             endcase
 
                             m_done <= 1'b1;
@@ -522,9 +551,9 @@
 
                         // Signed overflow: INT_MIN / -1
                         else if ((instruction_in.op == op::DIV ||
-                                instruction_in.op == op::REM) &&
-                                rs1_data_in == 32'h8000_0000 &&
-                                rs2_data_in == 32'hFFFF_FFFF) begin
+                                 instruction_in.op == op::REM) &&
+                                 rs1_data_in == 32'h8000_0000 &&
+                                 rs2_data_in == 32'hFFFF_FFFF) begin
 
                             case (instruction_in.op)
 
@@ -534,6 +563,7 @@
                             op::REM:
                                 m_result <= 32'd0;
 
+                            default: ;
                             endcase
 
                             m_done <= 1'b1;
@@ -543,9 +573,36 @@
                         // Start iterative divider
                         else begin
 
-                            // TODO: Additional Initialization
+                            counter   <= 6'd32;
+                            remainder <= 33'd0;
 
-                            // TODO: operand process
+                            case (instruction_in.op)
+                            op::DIV: begin
+                                sign_quot <= rs1_data_in[31] ^ rs2_data_in[31];
+                                sign_rem  <= rs1_data_in[31];
+                                quotient  <= op_a_abs_signed;
+                                divisor   <= op_b_abs_signed;
+                            end
+                            op::REM: begin
+                                sign_quot <= rs1_data_in[31] ^ rs2_data_in[31];
+                                sign_rem  <= rs1_data_in[31];
+                                quotient  <= op_a_abs_signed;
+                                divisor   <= op_b_abs_signed;
+                            end
+                            op::DIVU: begin
+                                sign_quot <= 1'b0;
+                                sign_rem  <= 1'b0;
+                                quotient  <= rs1_data_in;
+                                divisor   <= rs2_data_in;
+                            end
+                            op::REMU: begin
+                                sign_quot <= 1'b0;
+                                sign_rem  <= 1'b0;
+                                quotient  <= rs1_data_in;
+                                divisor   <= rs2_data_in;
+                            end
+                            default: ;
+                            endcase
 
                             m_state <= instruction::M_DIV;
 
@@ -553,6 +610,7 @@
 
                     end
 
+                    default: ;
                     endcase
 
                 end
@@ -565,29 +623,74 @@
 
             instruction::M_MUL: begin
 
-                // TODO: Calculation \
-                // Both Signed and Unsigned multiplication
+                if (counter != 6'd0) begin
+                    if (multiplier[0]) begin
+                        product <= product + multiplicand;
+                    end
+                    multiplicand <= multiplicand << 1;
+                    multiplier   <= multiplier >> 1;
+                    counter      <= counter - 6'd1;
+                end
+                else begin
+                    logic [63:0] corrected_product;
+                    corrected_product = sign_prod ? -product : product;
 
-                m_done  <= 1'b1;
-                m_state <= instruction::M_IDLE;
+                    if (instruction_in.op == op::MUL)
+                        m_result <= corrected_product[31:0];
+                    else
+                        m_result <= corrected_product[63:32];
+
+                    m_done  <= 1'b1;
+                    m_state <= instruction::M_IDLE;
+                end
 
             end
-            
+
             //----------------------------------------------------
             // DIVIDER
             //----------------------------------------------------
 
             instruction::M_DIV: begin
 
-                // TODO: Calculation \
-                // Actual division or remainder operation \
-                // (use restoring division)
+                if (counter != 6'd0) begin
+                    logic [32:0] next_rem;
+                    logic [32:0] sub_add_rem;
+                    next_rem = {remainder[31:0], quotient[31]};
 
-                m_done  <= 1'b1;
-                m_state <= instruction::M_IDLE;
+                    if (remainder[32] == 1'b0)
+                        sub_add_rem = next_rem - {1'b0, divisor};
+                    else
+                        sub_add_rem = next_rem + {1'b0, divisor};
+
+                    remainder <= sub_add_rem;
+                    quotient  <= {quotient[30:0], ~sub_add_rem[32]};
+
+                    counter <= counter - 6'd1;
+                end
+                else begin
+                    logic [32:0] restored_remainder;
+                    logic [31:0] final_quotient;
+                    logic [31:0] final_remainder;
+
+                    restored_remainder = remainder[32] ? (remainder + {1'b0, divisor}) : remainder;
+
+                    final_quotient  = sign_quot ? -quotient : quotient;
+                    final_remainder = sign_rem ? -restored_remainder[31:0] : restored_remainder[31:0];
+
+                    if (instruction_in.op == op::DIV || instruction_in.op == op::DIVU)
+                        m_result <= final_quotient;
+                    else
+                        m_result <= final_remainder;
+
+                    m_done  <= 1'b1;
+                    m_state <= instruction::M_IDLE;
+                end
 
             end
 
+            default: begin
+                m_state <= instruction::M_IDLE;
+            end
             endcase
 
         end
