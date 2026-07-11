@@ -30,7 +30,7 @@ package clk_params;
 
     localparam real MMCM_MUL   = 15.000;   // 2.000 - 64.000  (steps of 0.125)
     localparam int  MMCM_DIV   = 2;        // 1     - 56      (steps of 1)
-    localparam real MMCM_DIV_0 = 12.000;   // 1.000 - 128.000 (steps of 0.125)
+    localparam real MMCM_DIV_0 = 11.250;   // 1.000 - 128.000 (steps of 0.125)
 
     localparam real SYS_CLK_FREQUENCY_MHZ = (INPUT_CLK_FREQUENCY_MHZ / MMCM_DIV * MMCM_MUL) / MMCM_DIV_0;
     localparam real SYS_CLK_PERIOD_NS     = 1000.000 / SYS_CLK_FREQUENCY_MHZ;
