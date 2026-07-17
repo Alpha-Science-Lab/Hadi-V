@@ -28,6 +28,7 @@ module instruction_decoder (
     logic [31:0] imm_csr;
 
     logic csr_valid;
+    logic [11:0] csr_addr;
     logic csr_read_only;
     logic csr_is_op;
     logic csr_write;
@@ -62,135 +63,73 @@ module instruction_decoder (
     assign imm_csr = {27'b0,instruction_in[19:15]};
 
 
+    /* Optimized csr_addr decode
+        Md. Jannatul Nayem*/
+    
     // Check if csr op is legal
-        
+    assign csr_addr = csr::t'(instruction_in[31:20]);
+    
     always_comb begin
         csr_valid = 1'b0;
-
-        unique case (instruction_in[31:20])
-
-            csr::MVENDORID,
-            csr::MARCHID,
-            csr::MIMPID,
-            csr::MHARTID,
-            csr::MCONFIGPTR,
-
-            csr::MSTATUS,
-            csr::MISA,
-            csr::MEDELEG,
-            csr::MIDELEG,
-            csr::MIE,
-            csr::MTVEC,
-            csr::MCOUNTEREN,
-            csr::MSTATUSH,
-
-            csr::MSCRATCH,
-            csr::MEPC,
-            csr::MCAUSE,
-            csr::MTVAL,
-            csr::MIP,
-
-            csr::MCYCLE,
-            csr::MINSTRET,
-
-            csr::MCYCLEH,
-            csr::MINSTRETH,
-
-            csr::MHPMCOUNTER3,
-            csr::MHPMCOUNTER4,
-            csr::MHPMCOUNTER5,
-            csr::MHPMCOUNTER6,
-            csr::MHPMCOUNTER7,
-            csr::MHPMCOUNTER8,
-            csr::MHPMCOUNTER9,
-            csr::MHPMCOUNTER10,
-            csr::MHPMCOUNTER11,
-            csr::MHPMCOUNTER12,
-            csr::MHPMCOUNTER13,
-            csr::MHPMCOUNTER14,
-            csr::MHPMCOUNTER15,
-            csr::MHPMCOUNTER16,
-            csr::MHPMCOUNTER17,
-            csr::MHPMCOUNTER18,
-            csr::MHPMCOUNTER19,
-            csr::MHPMCOUNTER20,
-            csr::MHPMCOUNTER21,
-            csr::MHPMCOUNTER22,
-            csr::MHPMCOUNTER23,
-            csr::MHPMCOUNTER24,
-            csr::MHPMCOUNTER25,
-            csr::MHPMCOUNTER26,
-            csr::MHPMCOUNTER27,
-            csr::MHPMCOUNTER28,
-            csr::MHPMCOUNTER29,
-            csr::MHPMCOUNTER30,
-            csr::MHPMCOUNTER31,
-
-            csr::MHPMCOUNTER3H,
-            csr::MHPMCOUNTER4H,
-            csr::MHPMCOUNTER5H,
-            csr::MHPMCOUNTER6H,
-            csr::MHPMCOUNTER7H,
-            csr::MHPMCOUNTER8H,
-            csr::MHPMCOUNTER9H,
-            csr::MHPMCOUNTER10H,
-            csr::MHPMCOUNTER11H,
-            csr::MHPMCOUNTER12H,
-            csr::MHPMCOUNTER13H,
-            csr::MHPMCOUNTER14H,
-            csr::MHPMCOUNTER15H,
-            csr::MHPMCOUNTER16H,
-            csr::MHPMCOUNTER17H,
-            csr::MHPMCOUNTER18H,
-            csr::MHPMCOUNTER19H,
-            csr::MHPMCOUNTER20H,
-            csr::MHPMCOUNTER21H,
-            csr::MHPMCOUNTER22H,
-            csr::MHPMCOUNTER23H,
-            csr::MHPMCOUNTER24H,
-            csr::MHPMCOUNTER25H,
-            csr::MHPMCOUNTER26H,
-            csr::MHPMCOUNTER27H,
-            csr::MHPMCOUNTER28H,
-            csr::MHPMCOUNTER29H,
-            csr::MHPMCOUNTER30H,
-            csr::MHPMCOUNTER31H,
-
-            csr::MHPMEVENT3,
-            csr::MHPMEVENT4,
-            csr::MHPMEVENT5,
-            csr::MHPMEVENT6,
-            csr::MHPMEVENT7,
-            csr::MHPMEVENT8,
-            csr::MHPMEVENT9,
-            csr::MHPMEVENT10,
-            csr::MHPMEVENT11,
-            csr::MHPMEVENT12,
-            csr::MHPMEVENT13,
-            csr::MHPMEVENT14,
-            csr::MHPMEVENT15,
-            csr::MHPMEVENT16,
-            csr::MHPMEVENT17,
-            csr::MHPMEVENT18,
-            csr::MHPMEVENT19,
-            csr::MHPMEVENT20,
-            csr::MHPMEVENT21,
-            csr::MHPMEVENT22,
-            csr::MHPMEVENT23,
-            csr::MHPMEVENT24,
-            csr::MHPMEVENT25,
-            csr::MHPMEVENT26,
-            csr::MHPMEVENT27,
-            csr::MHPMEVENT28,
-            csr::MHPMEVENT29,
-            csr::MHPMEVENT30,
-            csr::MHPMEVENT31:
-
+    
+        unique case (1'b1)
+    
+            // Machine Information Registers
+            (csr_addr >= csr::MVENDORID  &&
+             csr_addr <= csr::MCONFIGPTR):
+    
                 csr_valid = 1'b1;
-
+    
+            // Standard machine CSRs
+            (csr_addr == csr::MSTATUS)     ||
+            (csr_addr == csr::MISA)        ||
+            (csr_addr == csr::MEDELEG)     ||
+            (csr_addr == csr::MIDELEG)     ||
+            (csr_addr == csr::MIE)         ||
+            (csr_addr == csr::MTVEC)       ||
+            (csr_addr == csr::MCOUNTEREN)  ||
+            (csr_addr == csr::MSTATUSH)    ||
+            (csr_addr == csr::MSCRATCH)    ||
+            (csr_addr == csr::MEPC)        ||
+            (csr_addr == csr::MCAUSE)      ||
+            (csr_addr == csr::MTVAL)       ||
+            (csr_addr == csr::MIP):
+    
+                csr_valid = 1'b1;
+    
+            // Counters
+            (csr_addr >= csr::MCYCLE &&
+             csr_addr <= csr::MINSTRET):
+    
+                csr_valid = 1'b1;
+    
+            // High counters
+            (csr_addr >= csr::MCYCLEH &&
+             csr_addr <= csr::MINSTRETH):
+    
+                csr_valid = 1'b1;
+    
+            // HPM counters
+            (csr_addr >= csr::MHPMCOUNTER3 &&
+             csr_addr <= csr::MHPMCOUNTER31):
+    
+                csr_valid = 1'b1;
+    
+            // HPM counter high
+            (csr_addr >= csr::MHPMCOUNTER3H &&
+             csr_addr <= csr::MHPMCOUNTER31H):
+    
+                csr_valid = 1'b1;
+    
+            // HPM events
+            (csr_addr >= csr::MHPMEVENT3 &&
+             csr_addr <= csr::MHPMEVENT31):
+    
+                csr_valid = 1'b1;
+    
             default:
                 csr_valid = 1'b0;
-
+    
         endcase
     end
 
@@ -330,41 +269,56 @@ module instruction_decoder (
 
                         else if (funct7 == 7'b0100000)
                             instruction_out.op = op::SUB;
-
+                        
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MUL;
+                    `endif
+                    
                     end
 
                     3'b001: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLL;
-
+                        
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULH;
+                    `endif
+                    
                     end
 
                     3'b010: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLT;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULHSU;
+                    `endif
+                    
                     end
 
                     3'b011: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::SLTU;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::MULHU;
+                    `endif
+                    
                     end
 
                     3'b100: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::XOR;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::DIV;
+                    `endif
+                    
                     end
 
                     3'b101: begin
@@ -373,25 +327,34 @@ module instruction_decoder (
 
                         else if (funct7 == 7'b0100000)
                             instruction_out.op = op::SRA;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::DIVU;
+                    `endif
+                    
                     end
 
                     3'b110: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::OR;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::REM;
+                    `endif
+                    
                     end
 
                     3'b111: begin
                         if (funct7 == 7'b0000000)
                             instruction_out.op = op::AND;
-
+                    
+                    `ifdef M_EXT
                         else if (funct7 == 7'b0000001) /* M-ext */
                             instruction_out.op = op::REMU;
+                    `endif
+                    
                     end
 
                 endcase

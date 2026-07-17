@@ -19,11 +19,10 @@ CC = riscv32-unknown-elf-gcc
 OBJCOPY = riscv32-unknown-elf-objcopy
 # OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
 OBJDUMP = riscv32-unknown-elf-objdump
-# ISA configuration
-RISCV_ARCH = -march=rv32im_zicsr -mabi=ilp32
 
 # XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
-XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
+XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.2/
+# XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
 
 # Directories
@@ -42,8 +41,23 @@ ASM_DIR = $(TEST_DIR)/asm
 C_DIR = $(TEST_DIR)/c
 SV_DIR = $(TEST_DIR)/sv
 
+################################################################################
+#                            ISA / Feature Selection                           #
+################################################################################
+M_EXT ?= 0
+
+# ISA configuration
+ifeq ($(M_EXT),1)
+RISCV_ARCH = -march=rv32im_zicsr_zifencei -mabi=ilp32
+else
+RISCV_ARCH = -march=rv32i_zicsr_zifencei -mabi=ilp32
+endif
+
 # Verilator Flags
 VERILATOR_FLAGS =
+ifeq ($(M_EXT),1)
+VERILATOR_FLAGS += -DM_EXT
+endif
 VERILATOR_FLAGS += -cc
 VERILATOR_FLAGS += -Wall -Wno-fatal
 VERILATOR_FLAGS += -f $(SIM_DIR)/files.txt
@@ -83,7 +97,19 @@ MODE ?= batch
 .PHONY: synthesis
 synthesis: $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)
-	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth.tcl
+	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth.tcl -tclargs $(M_EXT)
+
+################################################################################
+#                              CPU-only Synthesis                              #
+################################################################################
+
+.PHONY: synthesis_cpu
+synthesis_cpu:
+	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/cpu
+	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && \
+	$(VIVADO) -mode $(MODE) \
+	-source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl \
+	-tclargs $(M_EXT)
 
 ################################################################################
 #                                  Simulation                                  #

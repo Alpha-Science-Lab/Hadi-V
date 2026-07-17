@@ -3,6 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: top.sv
+ *
+ * Modified (add scratchpad register)
+ * by Md. Jannatul Nayem
+ * Org: Alpha Science Lab, April '26
  */
 
 
@@ -68,11 +72,20 @@ module top;
     end
 
     initial begin
+        buttons_async = 5'b00001; // assert reset
+
+        // hold reset for some cycles
+        repeat (32) @(posedge clk);
+
+        buttons_async = 5'b00000; // release reset
+    end
+
+    initial begin
         $dumpfile("sim.fst");
         $dumpvars;
 
-        // Run for 10000 cycles max
-        repeat (100000) @(negedge clk);
+        // Run for 10000000 cycles max
+        repeat (10000000) @(negedge clk);
 
         // Stop simulation
         $display("\033[0;33m"); // color_orange
@@ -96,6 +109,15 @@ module top;
                 end
             endcase
         end
+
+        if (mcu.wb_test.scratchpad_stb) begin
+            $display("\033[0;33m"); // color_orange
+            $display("(%6d ps) Scratchpad: 0x%08h", 
+                $time(), mcu.wb_test.scratchpad_reg);
+            $display("\033[0m"); // color off
+
+        end
+
     end
 
     // --------------------------------------------------------------------------------------------

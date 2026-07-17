@@ -102,19 +102,22 @@
 
     bit writes_rd, bypass_ready;
 
+`ifdef M_EXT
     // Multiplication temp registers
     logic signed [63:0] mul_ss;
     logic signed [63:0] mul_su;
     logic        [63:0] mul_uu;
 
+    assign mul_ss = $signed(rs1_data_in) * $signed(rs2_data_in);
+    assign mul_su = $signed(rs1_data_in) * $signed({1'b0, rs2_data_in});
+    assign mul_uu = rs1_data_in * rs2_data_in;
+
+`endif
+
     // ==========================================================
     // ALU + Control Logic
     // Pure combinational logic
     // ==========================================================
-
-    assign mul_ss = $signed(rs1_data_in) * $signed(rs2_data_in);
-    assign mul_su = $signed(rs1_data_in) * $signed({1'b0, rs2_data_in});
-    assign mul_uu = rs1_data_in * rs2_data_in;
 
     always_comb begin
 
@@ -231,7 +234,7 @@
 
 
             // ------------------RV32M Extension-----------------
-
+`ifdef M_EXT
             op::MUL:
                 alu_result = mul_ss[31:0];
 
@@ -304,7 +307,7 @@
 
             end
 
-
+`endif
             // -----------------RV32M Extension------------------
 
 

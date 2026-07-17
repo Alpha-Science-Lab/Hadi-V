@@ -38,7 +38,7 @@ package constants;
     localparam bit [31:0] VGA_SIZE  = 32'h0000_9600; // 640 * 480 pixel with 4 bit color depth
 
     localparam bit [31:0] TEST_START = 32'h0012_0000;
-    localparam bit [31:0] TEST_SIZE  = 32'h0000_0005;
+    localparam bit [31:0] TEST_SIZE  = 32'h0000_0006;
 
     // --------------------------------------------------------------------------------------------
     // |                                    Address Constants                                     |
