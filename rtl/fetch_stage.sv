@@ -19,11 +19,76 @@ module fetch_stage (
     // Pipeline control
     output pipeline_status::forwards_t  status_forwards_out,
     input  pipeline_status::backwards_t status_backwards_in,
-    input  logic [31:0] jump_address_backwards_in
+    input  logic [31:0] jump_address_backwards_in,
+
+    // Forwarding interface
+    input forwarding::t exe_forwarding_in,
+    input forwarding::t mem_forwarding_in,
+    input forwarding::t wb_forwarding_in,
+    
+    // Branch prediction interface
+    input  branch_pred_pkg::update_t branch_pred_update_in,
+    output branch_pred_pkg::pred_t branch_pred_out
 );
+
+    branch_pred_pkg::pred_t branch_pred_d;
+    logic pred_jump_valid;
+    logic [31:0] imm_for_jal_jalr_branch;
+    logic is_jump, is_branch;
 
     // Program Counter register
     logic [31:0] pc;
+    logic [4:0] rs1_lookup_address;
+
+    // Branch Predictor
+    dyn_branch_pred branch_pred(
+        .clk(clk),
+
+        .program_counter_in(pc),
+
+        .pred_update_in(branch_pred_update_in),
+        .pred_jump_valid_out(pred_jump_valid),
+
+        .pred_out(branch_pred_d),
+        .is_jump(is_jump),
+        .is_branch(is_branch)
+    );    
+    
+    always_comb begin
+
+        imm_for_jal_jalr_branch = 32'b0;
+
+        if (wb.ack) begin
+            if (is_jump) begin
+                if (wb.dat_miso[6:0] == 7'b1101111) begin
+                    imm_for_jal_jalr_branch = {
+                        {20{wb.dat_miso[31]}},
+                        wb.dat_miso[31:21],
+                        1'b0
+                    }; // JALR
+                end else if (wb.dat_miso[6:0] == 7'b1100111) begin
+                    imm_for_jal_jalr_branch = {
+                        {11{wb.dat_miso[31]}},
+                        wb.dat_miso[31],
+                        wb.dat_miso[19:12],
+                        wb.dat_miso[20],
+                        wb.dat_miso[30:21],
+                        1'b0
+                    }; // JAL
+                end
+            end else if (is_branch) begin
+                imm_for_jal_jalr_branch = {
+                    {19{wb.dat_miso[31]}},
+                    wb.dat_miso[31],
+                    wb.dat_miso[7],
+                    wb.dat_miso[30:25],
+                    wb.dat_miso[11:8],
+                    1'b0
+                }; // Branch
+            end
+        end
+
+    end
 
     // Wishbone control signals
     assign wb.cyc      = !rst && 1'b1;
@@ -32,6 +97,16 @@ module fetch_stage (
     assign wb.sel      = 4'b1111;       // Word access
     assign wb.adr      = pc[31:2];      // word address
     assign wb.dat_mosi = 32'b0;         // Not used for reads
+
+    assign is_jump = wb.ack && (wb.dat_miso[6:0] == 7'b1101111 
+        || wb.dat_miso[6:0] == 7'b1100111); // JAL or JALR
+    
+    assign is_branch = wb.ack && wb.dat_miso[6:0] == 7'b1100011; 
+        // BEQ, BNE, BLT, BGE, BLTU, BGEU
+
+    assign rs1_lookup_address = wb.ack && is_jump && wb.dat_miso[6:0] == 7'b1100111 ?
+        wb.dat_miso[19:15] : 5'b0;
+        // JALR instruction requires rs1 lookup
 
 
     // PC Update Logic
@@ -48,10 +123,24 @@ module fetch_stage (
                 pipeline_status::STALL:
                     pc <= pc;  // Hold PC
 
-                default: // READY
-                    if (wb.ack)
-                        pc <= pc + 4;
-                
+                default: begin // READY
+                    if (wb.ack) begin
+                        if(pred_jump_valid) begin
+
+                            if(wb.dat_miso[6:0] == 7'b1101111 
+                            || wb.dat_miso[6:0] == 7'b1100111) // JAL or Branch
+                            begin
+                                pc <= pc + imm_for_jal_jalr_branch;
+
+                            end else if(rs1_lookup_address == 5'b0) // JALR
+                            begin
+                                pc <= imm_for_jal_jalr_branch & ~32'b1;
+                            end
+                        end
+                        else pc <= pc + 4;
+                    end
+                end
+
             endcase
         end
     end
@@ -81,10 +170,11 @@ module fetch_stage (
             end
 
             else if (wb.ack) begin
-                // ALWAYS latch when ack happens
                 instruction_reg_out     <= wb.dat_miso;
                 program_counter_reg_out <= pc;
                 status_forwards_out     <= pipeline_status::VALID;
+
+                branch_pred_out         <= branch_pred_d;
             end
 
             else begin
@@ -93,7 +183,6 @@ module fetch_stage (
 
         end
     end
-
 
     // TODO: Delete the following line and implement this module.
     // ref_fetch_stage golden(.*);

@@ -28,6 +28,9 @@ module Hadi_V (
     logic [31:0] d_progco_progci_e;
     logic [31:0] d_rsoneo_rsonei_e;
     logic [31:0] d_rstwoo_rstwoi_e;
+    branch_pred_pkg::pred_t f_predo_predi_d;
+    branch_pred_pkg::pred_t d_predo_predi_e;
+    branch_pred_pkg::update_t f_updi_updo_e;
     pipeline_status::forwards_t d_statfo_statfi_e;
     pipeline_status::backwards_t d_statbi_statbo_e;
     logic [31:0] d_jaddri_jaddro_e;
@@ -63,7 +66,10 @@ module Hadi_V (
 
         .status_forwards_out(f_statfo_statfi_d), /* Pipeline control*/
         .status_backwards_in(f_statbi_statbo_d),
-        .jump_address_backwards_in(f_jaddri_jaddro_d)
+        .jump_address_backwards_in(f_jaddri_jaddro_d),
+
+        .branch_pred_update_in(f_updi_updo_e), /* Branch predictor*/
+        .branch_pred_out(f_predo_predi_d)
     );
 
 
@@ -81,6 +87,9 @@ module Hadi_V (
         .rs2_data_reg_out(d_rstwoo_rstwoi_e),
         .program_counter_reg_out(d_progco_progci_e),
         .instruction_reg_out(d_insto_insti_e),
+
+        .branch_pred_in(f_predo_predi_d), /* Branch predictor*/
+        .branch_pred_out(d_predo_predi_e),
 
         .status_forwards_in(f_statfo_statfi_d), /* Pipeline control*/
         .status_forwards_out(d_statfo_statfi_e),
@@ -106,6 +115,9 @@ module Hadi_V (
         .program_counter_reg_out(e_progco_progci_m),
         .next_program_counter_reg_out(e_nxtprogco_nxtprogci_m),
         .forwarding_out(d_exefi_fo_e),
+
+        .branch_pred_in(d_predo_predi_e), /* Branch predictor*/
+        .branch_pred_update_out(f_updi_updo_e),
 
         .status_forwards_in(d_statfo_statfi_e), /* Pipeline control*/
         .status_forwards_out(e_statfo_statfi_m),

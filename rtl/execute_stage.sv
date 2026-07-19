@@ -1,5 +1,6 @@
 /* File: execute_stage.sv
  * Brought up by Md. Jubaer Fahad
+ * Extended (branch prediction) by Md. Jannatul Nayem
  * Organization: Alpha Science Lab
  * March 2026
  *
@@ -41,9 +42,9 @@
     input logic [31:0]   program_counter_in,
 
 
-    // =============================
+    // ==========================================================
     // Pipeline register outputs
-    // =============================
+    // ==========================================================
 
     // Data used by store or CSR operations
     output logic [31:0]   source_data_reg_out,
@@ -63,10 +64,19 @@
     // Forwarding bus to earlier stages
     output forwarding::t  forwarding_out,
 
+    // ==========================================================
+    // Branch predictor signals
+    // ==========================================================
 
-    // =============================
+    // Pass prediction to execute stage
+    input  branch_pred_pkg::pred_t branch_pred_in,
+
+    // Update branch history from execute stage
+    output branch_pred_pkg::update_t branch_pred_update_out,
+
+    // ==========================================================
     // Pipeline control
-    // =============================
+    // ==========================================================
 
     // Status moving forward through pipeline
     input  pipeline_status::forwards_t  status_forwards_in,
@@ -102,6 +112,9 @@
 
     bit writes_rd, bypass_ready;
 
+    // Wire that connects to flop
+    branch_pred_pkg::update_t pred_update_out_d;
+
 `ifdef M_EXT
     // Multiplication temp registers
     logic signed [63:0] mul_ss;
@@ -111,7 +124,6 @@
     assign mul_ss = $signed(rs1_data_in) * $signed(rs2_data_in);
     assign mul_su = $signed(rs1_data_in) * $signed({1'b0, rs2_data_in});
     assign mul_uu = rs1_data_in * rs2_data_in;
-
 `endif
 
     // ==========================================================
@@ -232,9 +244,10 @@
             op::OR:   alu_result = rs1_data_in | rs2_data_in;
             op::AND:  alu_result = rs1_data_in & rs2_data_in;
 
-
-            // ------------------RV32M Extension-----------------
+            
 `ifdef M_EXT
+            // ------------------RV32M Extension-----------------
+
             op::MUL:
                 alu_result = mul_ss[31:0];
 
@@ -307,9 +320,9 @@
 
             end
 
-`endif
-            // -----------------RV32M Extension------------------
 
+            // -----------------RV32M Extension------------------
+`endif
 
             // --------------------------------------------------
             // CSR instructions
@@ -331,14 +344,9 @@
         // Branch target calculation
         // ------------------------------------------------------
 
-        if (instruction_in.op inside {
-            op::BEQ,op::BNE,op::BLT,op::BGE,op::BLTU,op::BGEU
-        }) 
-        begin
-            if (branch_taken) begin
-                jump_address = program_counter_in + instruction_in.immediate;
-                next_pc      = jump_address;
-            end
+        if (branch_taken) begin
+            jump_address = program_counter_in + instruction_in.immediate;
+            next_pc = jump_address;
         end
 
 
@@ -347,17 +355,46 @@
         // RISC-V requires instruction address alignment
         // ------------------------------------------------------
 
-        if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) &&
-            jump_address[1:0] != 2'b00)
+        if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) 
+            && jump_address[1:0] != 2'b00) begin
                 status_forwards_next = pipeline_status::FETCH_MISALIGNED;
+        end
+        
 
         // ------------------------------------------------------
         // Local backwards control
         // ------------------------------------------------------
 
-        local_backwards_status =
-            (branch_taken || instruction_in.op inside {op::JAL,op::JALR})
-            ? pipeline_status::JUMP : pipeline_status::READY;
+        if(branch_pred_in.valid) begin
+
+            unique case ({branch_pred_in.taken, branch_taken})
+                2'b00: begin
+                    /* Correctly predicted | Not taken */
+                    // Optimal case
+                    local_backwards_status = pipeline_status::READY;
+                end
+                2'b01: begin
+                    /* Incorrectly predicted | Not taken */
+                    // Pipeline Flush
+                    local_backwards_status = pipeline_status::JUMP;                    
+                end
+                2'b10: begin
+                    /* Incorrectly predicted | Taken */
+                    // Pipeline Flush
+                    local_backwards_status = pipeline_status::JUMP;
+                    jump_address = program_counter_in + 4;
+                    next_pc = jump_address;
+                end
+                2'b11: begin
+                    /* Correctly predicted | Taken */
+                    // No penalty
+                    local_backwards_status = pipeline_status::READY;
+                end
+
+                default:;
+            endcase
+
+        end else local_backwards_status = pipeline_status::READY;   
 
     end
 
@@ -373,16 +410,33 @@
         status_backwards_out = pipeline_status::READY;
 
         if (status_backwards_in != pipeline_status::READY) begin
-
             // Later stage overrides this stage!
-            status_backwards_out       = status_backwards_in; // STALL from MEM or JUMP from WB
+            status_backwards_out = status_backwards_in; // STALL from MEM or JUMP from WB
             jump_address_backwards_out = jump_address_backwards_in;
 
         end else begin
-
-            status_backwards_out       = local_backwards_status;
+            status_backwards_out = local_backwards_status;
             jump_address_backwards_out = jump_address;
+        end
+    end
 
+
+    // ==========================================================
+    // Prediction Feedback
+    // ==========================================================
+
+    always_comb begin
+        pred_update_out_d = '0;
+        // Check if it's a branch instruction
+
+        if (branch_pred_in.valid) begin
+            // Branch history update in BTB
+
+            if(branch_taken) pred_update_out_d.taken = 1'b1;
+            else pred_update_out_d.taken = 1'b0;
+
+            pred_update_out_d.valid = 1'b1;
+            pred_update_out_d.pc = program_counter_in;
         end
 
     end
@@ -404,8 +458,7 @@
             source_data_reg_out          <= 32'b0;
 
             status_forwards_out          <= pipeline_status::BUBBLE;
-
-        end 
+        end
         else if (status_backwards_in == pipeline_status::JUMP) begin
             status_forwards_out <= pipeline_status::BUBBLE;
         end
@@ -423,14 +476,17 @@
             // status_forwards_in {VALID, FETCH_MISALIGNED}
             status_forwards_out          <= status_forwards_next;
 
+            branch_pred_update_out       <= pred_update_out_d;
+
         end else begin
             // status_forwards_in either {BUBBLE, FETCH_FAULT,
             // ILLEGAL_INSTRUCTION, ECALL, EBREAK}
-            status_forwards_out <= status_forwards_in;
-            program_counter_reg_out <= program_counter_in;
+            status_forwards_out          <= status_forwards_in;
+            program_counter_reg_out      <= program_counter_in;
             next_program_counter_reg_out <= next_pc;
-        end
 
+            branch_pred_update_out       <= '0;
+        end
     end
 
 
