@@ -1,6 +1,6 @@
-/* File: combined_test.c
- * Combined performance testing for Hadi-V.
- * Measures and reports a single overall IPC for the entire combined run.
+/* File: ipc_upon_loops.c
+ * Measures IPC for loops and function calls
+ * Reports overall IPC for the entire run
  */
 
 #include <stdint.h>
