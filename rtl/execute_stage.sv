@@ -34,13 +34,10 @@
     // Operand inputs from register file
     input logic [31:0]   rs1_data_in,
     input logic [31:0]   rs2_data_in,
-
     // Decoded instruction
     input instruction::t instruction_in,
-
     // PC of current instruction
     input logic [31:0]   program_counter_in,
-
 
     // ==========================================================
     // Pipeline register outputs
@@ -48,19 +45,14 @@
 
     // Data used by store or CSR operations
     output logic [31:0]   source_data_reg_out,
-
     // Result written to rd register
     output logic [31:0]   rd_data_reg_out,
-
     // Instruction forwarded to next stage
     output instruction::t instruction_reg_out,
-
     // PC forwarded to next stage
     output logic [31:0]   program_counter_reg_out,
-
     // Next PC (used by fetch stage)
     output logic [31:0]   next_program_counter_reg_out,
-
     // Forwarding bus to earlier stages
     output forwarding::t  forwarding_out,
 
@@ -70,10 +62,9 @@
 
     // Pass prediction to execute stage
     input  branch_pred_pkg::pred_t branch_pred_in,
-
     // Update branch history from execute stage
     output branch_pred_pkg::update_t branch_pred_update_out,
-
+    
     // ==========================================================
     // Pipeline control
     // ==========================================================
@@ -81,11 +72,9 @@
     // Status moving forward through pipeline
     input  pipeline_status::forwards_t  status_forwards_in,
     output pipeline_status::forwards_t  status_forwards_out,
-
     // Status moving backward through pipeline
     input  pipeline_status::backwards_t status_backwards_in,
     output pipeline_status::backwards_t status_backwards_out,
-
     // Jump address propagation
     input  logic [31:0] jump_address_backwards_in,
     output logic [31:0] jump_address_backwards_out

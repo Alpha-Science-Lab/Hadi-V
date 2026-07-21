@@ -28,7 +28,7 @@ module fetch_stage (
     
     // Branch prediction interface
     input  branch_pred_pkg::update_t branch_pred_update_in,
-    output branch_pred_pkg::pred_t branch_pred_out
+    output branch_pred_pkg::pred_t   branch_pred_out
 );
 
     branch_pred_pkg::pred_t branch_pred_d;
@@ -38,7 +38,6 @@ module fetch_stage (
 
     // Program Counter register
     logic [31:0] pc;
-    logic [4:0] rs1_lookup_address;
 
     // Branch Predictor
     dyn_branch_pred branch_pred(
@@ -102,12 +101,6 @@ module fetch_stage (
         || wb.dat_miso[6:0] == 7'b1100111); // JAL or JALR
     
     assign is_branch = wb.ack && wb.dat_miso[6:0] == 7'b1100011; 
-        // BEQ, BNE, BLT, BGE, BLTU, BGEU
-
-    assign rs1_lookup_address = wb.ack && is_jump && wb.dat_miso[6:0] == 7'b1100111 ?
-        wb.dat_miso[19:15] : 5'b0;
-        // JALR instruction requires rs1 lookup
-
 
     // PC Update Logic
     always_ff @(posedge clk) begin
@@ -126,14 +119,12 @@ module fetch_stage (
                 default: begin // READY
                     if (wb.ack) begin
                         if(pred_jump_valid) begin
-
                             if(wb.dat_miso[6:0] == 7'b1101111 
-                            || wb.dat_miso[6:0] == 7'b1100111) // JAL or Branch
-                            begin
+                            || wb.dat_miso[6:0] == 7'b1100111) begin
+                                // B type or JAL
                                 pc <= pc + imm_for_jal_jalr_branch;
-
-                            end else if(rs1_lookup_address == 5'b0) // JALR
-                            begin
+                            end else begin 
+                                // JALR considering rs1 as x0
                                 pc <= imm_for_jal_jalr_branch & ~32'b1;
                             end
                         end

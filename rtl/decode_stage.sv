@@ -262,10 +262,14 @@
         if (status_backwards_in == pipeline_status::JUMP) begin
             status_backwards_out = pipeline_status::JUMP;
             jump_address_backwards_out = jump_address_backwards_in;
+        end
 
-            if(decoded_instruction.op == op::JALR && decoded_instruction.rs1_address != 0) begin
-                jump_address_backwards_out = 
-                    rs1_data + decoded_instruction.immediate & ~32'b1;
+        else if(decoded_instruction.op == op::JALR 
+            && decoded_instruction.rs1_address != 0) begin
+            if(rs1_data != 0) begin
+                status_backwards_out = pipeline_status::JUMP;
+                jump_address_backwards_out = rs1_data 
+                    + decoded_instruction.immediate & ~32'b1;
             end
         end
         
