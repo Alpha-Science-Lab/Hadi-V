@@ -120,8 +120,8 @@ module fetch_stage (
                     if (wb.ack) begin
                         if(pred_jump_valid) begin
                             if(wb.dat_miso[6:0] == 7'b1101111 
-                            || wb.dat_miso[6:0] == 7'b1100111) begin
-                                // B type or JAL
+                            || wb.dat_miso[6:0] == 7'b1100011) begin
+                                // Branch or JAL
                                 pc <= pc + imm_for_jal_jalr_branch;
                             end else begin 
                                 // JALR considering rs1 as x0

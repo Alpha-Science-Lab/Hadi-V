@@ -257,6 +257,7 @@
     always_comb begin
 
         status_backwards_out = pipeline_status::READY;
+        jump_address_backwards_out = 32'b0;
 
         // Jump cancels stall
         if (status_backwards_in == pipeline_status::JUMP) begin
@@ -264,14 +265,7 @@
             jump_address_backwards_out = jump_address_backwards_in;
         end
 
-        else if(decoded_instruction.op == op::JALR 
-            && decoded_instruction.rs1_address != 0) begin
-            if(rs1_data != 0) begin
-                status_backwards_out = pipeline_status::JUMP;
-                jump_address_backwards_out = rs1_data 
-                    + decoded_instruction.immediate & ~32'b1;
-            end
-        end
+
         
         else if (status_backwards_in == pipeline_status::STALL)
             status_backwards_out = pipeline_status::STALL;
