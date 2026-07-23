@@ -7,7 +7,7 @@
 */
 
 
-module tang_nano9k_top(
+module tang9k_top(
     // 27 MHz input clock
     input logic clk_27mhz,
 
@@ -25,24 +25,29 @@ module tang_nano9k_top(
     // --------------------------------------------------------------------------------------------
     // |                                     Clock Generation                                     |
     // --------------------------------------------------------------------------------------------
+    import clk_params::*;
 
-    localparam int CLK_MHZ = 16;
-    logic clk;
+    logic clk_o;
+    logic locked;
 
-    // TODO: Place a clock divider
+    pll pll_inst(
+        .clock_in(clk_27mhz), // clkin
+        .clock_out(clk_o), // clkout
+        .locked(locked)
+    );
 
     // --------------------------------------------------------------------------------------------
     // |                                    MCU Instantiation                                     |
     // --------------------------------------------------------------------------------------------
 
-    tang_nano9k_mcu #(
-        .CLK_FREQUENCY_MHZ(CLK_MHZ),
+    tang9k_mcu #(
+        .CLK_FREQUENCY_MHZ(GW_SYS_CLK_FREQ_MHZ),
         .UART_BAUD_RATE(115200)
     ) mcu (
-        .clk(clk),
-        .clk_mem(~clk),
+        .clk(clk_o),
+        .clk_mem(~clk_o),
         .leds(leds),
-        .buttons_async(buttons_async),
+        .buttons_async(buttons_async || {~locked,1'b0}), // buttons_async[1] is connected to reset
         .uart_rx_async(uart_rx_async),
         .uart_tx(uart_tx)
     );

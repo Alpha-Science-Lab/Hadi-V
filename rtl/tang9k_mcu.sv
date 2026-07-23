@@ -7,7 +7,7 @@
 */
 
 
-module tang_nano9k_mcu #(
+module tang9k_mcu #(
     parameter real CLK_FREQUENCY_MHZ,
     parameter int  UART_BAUD_RATE
 ) (
@@ -34,13 +34,18 @@ module tang_nano9k_mcu #(
     // --------------------------------------------------------------------------------------------
 
     logic [4:0] buttons;
-    for (genvar i = 0; i < 5 ; i++) begin: button_conditioning
-        synchronizer button_sync(
-            .clk(clk),
-            .async_in(buttons_async[i]),
-            .sync_out(buttons[i])
-        );
-    end
+    // for (genvar i = 0; i < 5; i++) begin
+    //     synchronizer button_sync(
+    //         .clk(clk),
+    //         .async_in(buttons_async[i]),
+    //         .sync_out(buttons[i])
+    //     );
+    // end
+    synchronizer button_sync(
+        .clk(clk),
+        .async_in(buttons_async[0]),
+        .sync_out(buttons[0])
+    );
 
     logic uart_rx;
     synchronizer uart_rx_sync(
@@ -127,9 +132,10 @@ module tang_nano9k_mcu #(
         .slaves(mem_bus_slaves)
     );
 
-    wishbone_ram #(
+    tang9k_ram #(
         .ADDRESS(MEMORY_START),
-        .SIZE(MEMORY_SIZE)
+        .SIZE(MEMORY_SIZE),
+        .INIT_FILE("../../build/test/c/bootloader/init.mem")
     ) ram (
         .clk(clk_mem),
         .rst(rst),

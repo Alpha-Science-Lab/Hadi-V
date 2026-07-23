@@ -73,7 +73,7 @@ module uart_rx #(
                         rx_byte_reg <= { rx_serial_in, rx_byte_reg[7:1] };
                         // check if last bit recieved
                         if (bit_idx == 7) begin rx_state <= RECIEVE_STOP_BIT; end
-                        else              begin bit_idx  <= bit_idx + 1; end
+                        else              begin bit_idx  <= bit_idx + 4'd1; end
                     end
                 end
                 RECIEVE_STOP_BIT: begin

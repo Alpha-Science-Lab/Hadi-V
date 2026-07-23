@@ -21,8 +21,14 @@ OBJCOPY = riscv32-unknown-elf-objcopy
 OBJDUMP = riscv32-unknown-elf-objdump
 
 # XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
-XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
+XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.2/
+# XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
+
+GOWIN_SH    ?= LD_LIBRARY_PATH=/tools/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= \
+			   gw_sh
+
+GOWIN_PLL   = gowin_pll
 
 # Directories
 SIM_DIR = sim
@@ -39,6 +45,10 @@ TEST_DIR = test
 ASM_DIR = $(TEST_DIR)/asm
 C_DIR = $(TEST_DIR)/c
 SV_DIR = $(TEST_DIR)/sv
+
+TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
+GOWIN_PLL_WRAPPER = $(LIB_DIR)/gowin_rpll.v
+GOWIN_TCL_SCRIPT  = $(SYNTH_DIR)/tang9k_synth.tcl
 
 ################################################################################
 #                            ISA / Feature Selection                           #
@@ -98,17 +108,26 @@ synthesis: $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)
 	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth.tcl -tclargs $(M_EXT)
 
-################################################################################
-#                              CPU-only Synthesis                              #
-################################################################################
 
 .PHONY: synthesis_cpu
 synthesis_cpu:
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/cpu
-	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && \
-	$(VIVADO) -mode $(MODE) \
-	-source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl \
-	-tclargs $(M_EXT)
+	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl -tclargs $(M_EXT)
+
+.PHONY: synthesis_gw
+synthesis_gw:$(TANG9K_BITSTREAM)
+
+$(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
+	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR) 
+	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT) -tclargs $(M_EXT)
+
+#Generate the PLL wrapper
+$(GOWIN_PLL_WRAPPER):
+	$(GOWIN_PLL) -d "GW1NR-9 C6/I5" -i 27 -o 16 -f $@
+
+.PHONY: flash_tang9k
+flash_tang9k: $(TANG9K_BITSTREAM)
+	openFPGALoader -b tangnano9k $(TANG9K_BITSTREAM)
 
 ################################################################################
 #                                  Simulation                                  #

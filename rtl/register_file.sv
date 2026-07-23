@@ -46,7 +46,7 @@ module register_file (
                 if (clr_addr == 31)
                     clearing <= 1'b0;
                 else
-                    clr_addr <= clr_addr + 1;
+                    clr_addr <= clr_addr + 5'd1;
             end
         end
         else begin

@@ -45,9 +45,13 @@ module wishbone_interconnect #(
             count <= 0;
         end
         else begin
-            if (ack || err)                                   begin count <= 0;         end
-            else if (master.cyc && master.stb && count < 255) begin count <= count + 1; end
-            else                                              begin count <= 0;         end
+            if (ack || err) begin 
+                count <= 0;
+            end else if (master.cyc && master.stb && count < 255) begin
+                count <= count + 7'd1;
+            end else begin 
+                count <= 0;
+            end
         end
     end
 

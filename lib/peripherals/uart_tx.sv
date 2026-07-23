@@ -74,7 +74,7 @@ module uart_tx #(
                         tx_byte_reg <= { 1'b0, tx_byte_reg[7:1] };
                         // check if last bit transmitted
                         if (bit_idx == 7) begin tx_state <= TRANSMITT_STOP_BIT; end
-                        else              begin bit_idx  <= bit_idx + 1; end
+                        else              begin bit_idx  <= bit_idx + 4'd1; end
                     end
                 end
                 TRANSMITT_STOP_BIT: begin
