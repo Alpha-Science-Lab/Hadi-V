@@ -15,8 +15,6 @@ module tang9k_ram #(
     // |                                          Memory                                          |
     // --------------------------------------------------------------------------------------------
 
-    // Note: ram_decomp attribute ensures Vivado specifies as a Byte Wide Write Enable RAM
-    (* ram_decomp = "power" *)
     logic [31:0] memory [SIZE];
 
     initial begin

@@ -70,11 +70,6 @@ add_file $ROOT/synth/tangnano9k.cst
 add_file $ROOT/synth/tangnano9k.sdc
 
 #---------------------------------------------------------
-# Read Memory File
-#---------------------------------------------------------
-add_file $ROOT/build/test/c/bootloader/init.mem
-
-#---------------------------------------------------------
 # Project Options
 #---------------------------------------------------------
 set_option -top_module tang9k_top
