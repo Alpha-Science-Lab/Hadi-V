@@ -119,7 +119,7 @@ synthesis_gw:$(TANG9K_BITSTREAM)
 
 $(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR) 
-	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT) -tclargs $(M_EXT)
+	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT) $(M_EXT)
 
 #Generate the PLL wrapper
 $(GOWIN_PLL_WRAPPER):

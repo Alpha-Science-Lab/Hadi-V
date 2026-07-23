@@ -24,6 +24,8 @@
  *   - Must propagate immediately without delay
  *   - Later pipeline stages have priority
  */
+
+ `include "tang9k.svh"
  
  module execute_stage (
 

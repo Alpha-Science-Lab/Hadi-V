@@ -15,6 +15,12 @@ if {$argc > 0} {
     set m_ext [lindex $argv 0]
 }
 
+# puts "DEBUG: m_ext = $m_ext"
+
+set config_file [file join $ROOT synth tang9k.svh]
+set fp [open $config_file w]
+
+
 #---------------------------------------------------------
 # Target Device
 #---------------------------------------------------------
@@ -29,6 +35,8 @@ set_option -verilog_std sysv2017
 # Define source files
 #---------------------------------------------------------
 set SOURCES {
+    synth/tang9k.svh
+
     defines/csr.sv
     defines/op.sv
     defines/instruction.sv
@@ -51,10 +59,12 @@ set SOURCES {
 #---------------------------------------------------------
 # Optional M Extension
 #---------------------------------------------------------
-if {$m_ext == 1} {
-    puts "INFO: Enabling M extension"
-    # Uncomment if your Gowin version supports it
-    set_option -verilog_define M_EXT
+if {$m_ext} {
+    puts $fp "`define M_EXT"
+    close $fp
+} else {
+    puts $fp ""
+    close $fp
 }
 
 foreach source $SOURCES {

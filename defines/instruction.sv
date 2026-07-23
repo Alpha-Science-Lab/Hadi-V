@@ -5,7 +5,7 @@
  * File: instruction.sv
  */
 
-
+`include "tang9k.svh"
 
 /*verilator lint_off UNUSED*/
 
