@@ -104,8 +104,9 @@ module top;
                     error_count <= error_count + 1;
                 end
                 2: begin
-                    $finish();
                     print_test_done();
+                    $fflush();
+                    $finish();
                 end
             endcase
         end
