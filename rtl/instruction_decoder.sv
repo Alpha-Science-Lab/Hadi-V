@@ -6,7 +6,7 @@
  * March 2026
 */
 
-`include "tang9k.svh"
+// `define M_EXT
 
 module instruction_decoder (
     input  logic [31:0]   instruction_in,

@@ -6,20 +6,6 @@
 # Get root directory
 set ROOT [file normalize [file dirname [info script]]/..]
 
-#---------------------------------------------------------
-# Optional feature flags passed from command line
-#---------------------------------------------------------
-set m_ext 0
-
-if {$argc > 0} {
-    set m_ext [lindex $argv 0]
-}
-
-# puts "DEBUG: m_ext = $m_ext"
-
-set config_file [file join $ROOT synth tang9k.svh]
-set fp [open $config_file w]
-
 
 #---------------------------------------------------------
 # Target Device
@@ -35,7 +21,6 @@ set_option -verilog_std sysv2017
 # Define source files
 #---------------------------------------------------------
 set SOURCES {
-    synth/tang9k.svh
 
     defines/csr.sv
     defines/op.sv
@@ -56,16 +41,6 @@ set SOURCES {
     synth/tang9k_top.sv
 }
 
-#---------------------------------------------------------
-# Optional M Extension
-#---------------------------------------------------------
-if {$m_ext} {
-    puts $fp "`define M_EXT"
-    close $fp
-} else {
-    puts $fp ""
-    close $fp
-}
 
 foreach source $SOURCES {
     foreach file [glob -nocomplain [file join $ROOT $source]] {

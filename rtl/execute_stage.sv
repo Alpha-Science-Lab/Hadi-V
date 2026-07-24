@@ -25,7 +25,7 @@
  *   - Later pipeline stages have priority
  */
 
- `include "tang9k.svh"
+//  `define M_EXT
  
  module execute_stage (
 
