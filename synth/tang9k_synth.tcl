@@ -55,8 +55,8 @@ foreach source $SOURCES {
 #---------------------------------------------------------
 # Read Constraints
 #---------------------------------------------------------
-add_file $ROOT/synth/tangnano9k.cst
-add_file $ROOT/synth/tangnano9k.sdc
+add_file $ROOT/synth/tang9k.cst
+add_file $ROOT/synth/tang9k.sdc
 
 #---------------------------------------------------------
 # Project Options

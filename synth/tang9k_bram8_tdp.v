@@ -39,8 +39,7 @@ module tang9k_bram8_tdp #(
         end else if (en_a) begin
             if (we_a)
                 mem[addr_a] <= din_a;
-
-            // synchronous read
+            
             dout_a <= mem[addr_a];
         end
     end
@@ -55,7 +54,6 @@ module tang9k_bram8_tdp #(
             if (we_b)
                 mem[addr_b] <= din_b;
 
-            // synchronous read
             dout_b <= mem[addr_b];
         end
     end

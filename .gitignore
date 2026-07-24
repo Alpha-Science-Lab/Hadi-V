@@ -1,1 +1,7 @@
+
+# build folder
 /build/
+
+# memory images
+*.ini
+*.mem 

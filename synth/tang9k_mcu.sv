@@ -139,11 +139,7 @@ module tang9k_mcu #(
 
     tang9k_ram #(
         .ADDRESS(MEMORY_START),
-        .SIZE(MEMORY_SIZE),
-        .INIT_FILE_B0("init0.mem"),
-        .INIT_FILE_B1("init1.mem"),
-        .INIT_FILE_B2("init2.mem"),
-        .INIT_FILE_B3("init3.mem")
+        .SIZE(MEMORY_SIZE)
     ) ram (
         .clk(clk_mem),
         .rst(rst),
@@ -192,9 +188,7 @@ module tang9k_mcu #(
     ) wb_timer (
         .clk(clk),
         .rst(rst),
-
         .interrupt(timer_interrupt),
-
         .wishbone(mem_bus_slaves[6])
     );
 
