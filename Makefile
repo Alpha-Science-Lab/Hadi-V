@@ -47,7 +47,7 @@ C_DIR = $(TEST_DIR)/c
 SV_DIR = $(TEST_DIR)/sv
 
 TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
-GOWIN_PLL_WRAPPER = $(LIB_DIR)/gowin_rpll.v
+GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
 GOWIN_TCL_SCRIPT  = $(SYNTH_DIR)/tang9k_synth.tcl
 
 ################################################################################
@@ -64,13 +64,13 @@ endif
 
 # Verilator Flags
 VERILATOR_FLAGS =
-ifeq ($(M_EXT),1)
-VERILATOR_FLAGS += -DM_EXT
-endif
 VERILATOR_FLAGS += -cc
 VERILATOR_FLAGS += -Wall -Wno-fatal
-VERILATOR_FLAGS += -f $(SIM_DIR)/files.txt
+ifeq ($(M_EXT),1) 
+	VERILATOR_FLAGS += -DM_EXT
+endif
 VERILATOR_FLAGS += $(abspath $(wildcard $(REF_DIR)/*.so)) -j
+VERILATOR_FLAGS += -f $(SIM_DIR)/files.txt
 
 ################################################################################
 #                                  Print Help                                  #

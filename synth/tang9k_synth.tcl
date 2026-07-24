@@ -31,12 +31,15 @@ set SOURCES {
     defines/constants.sv
     defines/clk_params.sv
 
-    lib/gowin_rpll.v
     lib/*.sv
     lib/peripherals/*.sv
     lib/wishbone/*.sv
     
     rtl/*.sv
+
+    synth/gowin_rpll.v
+    synth/tang9k_ram.sv
+    synth/tang9k_mcu.sv
 
     synth/tang9k_top.sv
 }
