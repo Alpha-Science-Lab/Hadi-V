@@ -7,23 +7,26 @@ module tang9k_bram8_tdp #(
     input  wire        rst,
 
     // Port A
-    input  wire        en_a,
+    input  wire        ce_a,
+    input  wire        oce_a,
     input  wire        we_a,
     input  wire [10:0] addr_a,
     input  wire [7:0]  din_a,
-    output reg  [7:0]  dout_a,
+    output wire [7:0]  dout_a,
 
     // Port B
-    input  wire        en_b,
+    input  wire        ce_b,
+    input  wire        oce_b,
     input  wire        we_b,
     input  wire [10:0] addr_b,
     input  wire [7:0]  din_b,
-    output reg  [7:0]  dout_b
+    output wire [7:0]  dout_b
 );
 
     // Ask the synthesizer to use block RAM
     (* ram_style = "block" *)
     reg [7:0] mem [0:DEPTH-1];
+    reg [7:0] dout_ar, dout_br;
 
     initial begin
         if (INIT_FILE != "")
@@ -35,27 +38,41 @@ module tang9k_bram8_tdp #(
     // ----------------------------------------------------------
     always_ff @(posedge clk) begin
         if(rst) begin
-            dout_a <= 8'b0;
-        end else if (en_a) begin
-            if (we_a)
-                mem[addr_a] <= din_a;
-            
-            dout_a <= mem[addr_a];
+            dout_ar <= 8'b0;
+        end else begin
+            if (ce_a & oce_a & !we_a) begin
+                dout_ar <= mem[addr_a];
+            end
         end
     end
+
+    always_ff @(posedge clk) begin
+        if(ce_a & we_a) begin
+            mem[addr_a] <= din_a;
+        end
+    end
+
+    assign dout_a = dout_ar;
 
     // ----------------------------------------------------------
     // Port B
     // ----------------------------------------------------------
     always_ff @(posedge clk) begin
         if(rst) begin
-            dout_b <= 8'b0;
-        end else if (en_b) begin
-            if (we_b)
-                mem[addr_b] <= din_b;
-
-            dout_b <= mem[addr_b];
+            dout_br <= 8'b0;
+        end else begin
+            if (ce_b & oce_b & !we_b) begin
+                dout_br <= mem[addr_b];
+            end
         end
     end
+
+    always_ff @(posedge clk) begin
+        if(ce_b & we_b) begin
+            mem[addr_b] <= din_b;
+        end
+    end
+
+    assign dout_b = dout_br;
 
 endmodule
