@@ -61,12 +61,6 @@ module fetch_stage (
             if (is_jump) begin
                 if (wb.dat_miso[6:0] == 7'b1101111) begin
                     imm_for_jal_jalr_branch = {
-                        {20{wb.dat_miso[31]}},
-                        wb.dat_miso[31:21],
-                        1'b0
-                    }; // JALR
-                end else if (wb.dat_miso[6:0] == 7'b1100111) begin
-                    imm_for_jal_jalr_branch = {
                         {11{wb.dat_miso[31]}},
                         wb.dat_miso[31],
                         wb.dat_miso[19:12],
@@ -74,6 +68,11 @@ module fetch_stage (
                         wb.dat_miso[30:21],
                         1'b0
                     }; // JAL
+                end else if (wb.dat_miso[6:0] == 7'b1100111) begin
+                    imm_for_jal_jalr_branch = {
+                        {20{wb.dat_miso[31]}},
+                        wb.dat_miso[31:20]
+                    }; // JALR
                 end
             end else if (is_branch) begin
                 imm_for_jal_jalr_branch = {
@@ -123,9 +122,17 @@ module fetch_stage (
                             || wb.dat_miso[6:0] == 7'b1100011) begin
                                 // Branch or JAL
                                 pc <= pc + imm_for_jal_jalr_branch;
-                            end else begin 
-                                // JALR considering rs1 as x0
-                                pc <= imm_for_jal_jalr_branch & ~32'b1;
+                            end else if (wb.dat_miso[6:0] == 7'b1100111) begin 
+                                // JALR
+                                if (wb.dat_miso[19:15] == 5'b00000) begin
+                                    // rs1 is x0
+                                    pc <= imm_for_jal_jalr_branch & ~32'b1;
+                                end else begin
+                                    // rs1 is not x0: Decode stage will redirect
+                                    pc <= pc + 4;
+                                end
+                            end else begin
+                                pc <= pc + 4;
                             end
                         end
                         else pc <= pc + 4;

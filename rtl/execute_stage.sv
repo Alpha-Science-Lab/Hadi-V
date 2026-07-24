@@ -356,8 +356,11 @@
 
         if (pipeline_forwards_valid) begin
             if (instruction_in.op == op::JALR) begin
+                /* JALR: Always redirect from execute using correct (rs1+imm)&~1 address.
+                 * Decode may have done an early redirect, but execute is authoritative
+                 * because it has the fully-forwarded rs1 value. */
                 local_backwards_status = pipeline_status::JUMP;
-            end else if(branch_pred_in.valid) begin
+            end else if (branch_pred_in.valid) begin
 
                 unique case ({branch_pred_in.taken, branch_taken})
                     2'b00: begin
@@ -366,16 +369,18 @@
                         local_backwards_status = pipeline_status::READY;
                     end
                     2'b01: begin
-                        /* Incorrectly predicted | Not taken */
+                        /* Incorrectly predicted | Actually Taken (BTB Miss) */
                         // Pipeline Flush
-                        local_backwards_status = pipeline_status::JUMP;                    
+                        local_backwards_status = pipeline_status::JUMP;
+                        jump_address = program_counter_in + instruction_in.immediate;
+                        next_pc      = jump_address;
                     end
                     2'b10: begin
-                        /* Incorrectly predicted | Taken */
+                        /* Incorrectly predicted | Actually Not Taken */
                         // Pipeline Flush
                         local_backwards_status = pipeline_status::JUMP;
                         jump_address = program_counter_in + 4;
-                        next_pc = jump_address;
+                        next_pc      = jump_address;
                     end
                     2'b11: begin
                         /* Correctly predicted | Taken */
@@ -386,11 +391,6 @@
                     default:;
                 endcase
 
-            end else if (branch_taken) begin
-                /* BTB Miss, but branch actually TAKEN */
-                local_backwards_status = pipeline_status::JUMP;
-                jump_address = program_counter_in + instruction_in.immediate;
-                next_pc      = jump_address;
             end else begin
                 local_backwards_status = pipeline_status::READY;
             end

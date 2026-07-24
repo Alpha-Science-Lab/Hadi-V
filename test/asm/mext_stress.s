@@ -70,6 +70,10 @@ test_init:
     lui  t3, %hi(0x120000<<2)
     addi t3, t3, %lo(0x120000<<2)
 
+# Verify test infrastructure: assert zero == 1 must fail
+test_fail_init:
+    assert_value zero, 1
+
 # ============================================================
 # BASIC SANITY
 # ============================================================

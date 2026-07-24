@@ -264,14 +264,23 @@
             status_backwards_out = pipeline_status::JUMP;
             jump_address_backwards_out = jump_address_backwards_in;
         end
-
-
         
         else if (status_backwards_in == pipeline_status::STALL)
             status_backwards_out = pipeline_status::STALL;
         
         else if (data_fwd_invalid)
             status_backwards_out = pipeline_status::STALL;
+
+        else if (pipeline_forwards_valid && decoded_instruction.op == op::JALR) begin
+            /* Only redirect for a genuine (non-bubble) JALR instruction.
+             * Without this guard, fetch retaining stale JALR bytes after a
+             * BUBBLE would cause the decode stage to emit JUMP every cycle,
+             * creating an infinite redirect loop. */
+            if ((decoded_instruction.rs1_address != 0 && rs1_data != 0) || !branch_pred_in.valid) begin
+                status_backwards_out = pipeline_status::JUMP;
+                jump_address_backwards_out = (rs1_data + decoded_instruction.immediate) & ~32'b1;
+            end
+        end
         
     end
 
