@@ -7,6 +7,13 @@
 # Get root directory
 set ROOT [file normalize [file dirname [info script]]/..]
 
+# Optional feature flags passed from Make
+set m_ext 0
+
+if {$argc > 0} {
+    set m_ext [lindex $argv 0]
+}
+
 # Supress some warnings
 # identifier <name> is used before its declaration
 set_msg_config -id {Synth 8-6901} -suppress
@@ -52,6 +59,11 @@ set SOURCES {
     synth/top.sv
 }
 
+if {$m_ext == 1} {
+    puts "INFO: Enabling M extension"
+    set_property verilog_define {M_EXT} [current_fileset]
+}
+
 foreach source $SOURCES {
     read_verilog -sv [glob -directory $ROOT $source]
 }
@@ -84,4 +96,4 @@ report_utilization -file reports/utilization_pnr.rpt
 report_power -file reports/power_pnr.rpt
 
 # Generate bitstream
-write_bitstream -force -bin hades-v.bit
+write_bitstream -force -bin hadi-v.bit

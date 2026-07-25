@@ -103,17 +103,56 @@
 
     // Wire that connects to flop
     branch_pred_pkg::update_t pred_update_out_d;
-
+    
 `ifdef M_EXT
-    // Multiplication temp registers
-    logic signed [63:0] mul_ss;
-    logic signed [63:0] mul_su;
-    logic        [63:0] mul_uu;
 
-    assign mul_ss = $signed(rs1_data_in) * $signed(rs2_data_in);
-    assign mul_su = $signed(rs1_data_in) * $signed({1'b0, rs2_data_in});
-    assign mul_uu = rs1_data_in * rs2_data_in;
-`endif
+    instruction::m_state_t m_state;
+
+    logic        m_busy;
+    logic        m_done;
+    logic        m_start;
+    logic        m_inst;
+    logic        m_stall;
+
+    logic [31:0] m_result;
+
+    logic [5:0]  counter;
+
+    // Multiplier datapath
+    logic [63:0] product;
+    logic [63:0] multiplicand;
+    logic [31:0] multiplier;
+
+    // Divider datapath (implement algorithm here)
+    logic [31:0] quotient;
+    logic [32:0] remainder;
+    logic [31:0] divisor;
+
+    // Sign tracking registers
+    logic        sign_prod;
+    logic        sign_quot;
+    logic        sign_rem;
+
+    // Absolute values of operands for signed operations
+    logic [31:0] op_a_abs_signed;
+    logic [31:0] op_b_abs_signed;
+    assign op_a_abs_signed = rs1_data_in[31] ? -rs1_data_in : rs1_data_in;
+    assign op_b_abs_signed = rs2_data_in[31] ? -rs2_data_in : rs2_data_in;
+
+    assign m_busy = (m_state != instruction::M_IDLE);
+
+    assign m_inst = instruction_in.op inside {
+        op::MUL,
+        op::MULH,
+        op::MULHSU,
+        op::MULHU,
+        op::DIV,
+        op::DIVU,
+        op::REM,
+        op::REMU
+    };
+
+`endif //M_EXT
 
     // ==========================================================
     // ALU + Control Logic
@@ -132,6 +171,12 @@
 
         // Propagate incoming status
         status_forwards_next = status_forwards_in;
+
+`ifdef M_EXT
+        m_start = 1'b0;
+        m_stall = 1'b0;
+`endif
+        local_backwards_status = pipeline_status::READY;
 
 
         // ------------------------------------------------------
@@ -233,86 +278,6 @@
             op::OR:   alu_result = rs1_data_in | rs2_data_in;
             op::AND:  alu_result = rs1_data_in & rs2_data_in;
 
-            
-`ifdef M_EXT
-            // ------------------RV32M Extension-----------------
-
-            op::MUL:
-                alu_result = mul_ss[31:0];
-
-            op::MULH:
-                alu_result = mul_ss[63:32];
-
-            op::MULHSU:
-                alu_result = mul_su[63:32];
-
-            op::MULHU:
-                alu_result = mul_uu[63:32];
-
-            // Signed division
-            op::DIV: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = 32'hFFFF_FFFF;
-
-                // Signed overflow
-                else if ((rs1_data_in == 32'h8000_0000) &&
-                         (rs2_data_in == 32'hFFFF_FFFF))
-                    alu_result = 32'h8000_0000;
-
-                else
-                    alu_result =
-                        $signed(rs1_data_in) / $signed(rs2_data_in);
-
-            end
-
-            // Unsigned division
-            op::DIVU: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = 32'hFFFF_FFFF;
-
-                else
-                    alu_result = rs1_data_in / rs2_data_in;
-
-            end
-
-            // Signed remainder
-            op::REM: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = rs1_data_in;
-
-                // Signed overflow
-                else if ((rs1_data_in == 32'h8000_0000) &&
-                         (rs2_data_in == 32'hFFFF_FFFF))
-                    alu_result = 32'b0;
-
-                else
-                    alu_result =
-                        $signed(rs1_data_in) % $signed(rs2_data_in);
-
-            end
-
-            // Unsigned remainder
-            op::REMU: begin
-
-                // Division by zero
-                if (rs2_data_in == 32'b0)
-                    alu_result = rs1_data_in;
-
-                else
-                    alu_result = rs1_data_in % rs2_data_in;
-
-            end
-
-
-            // -----------------RV32M Extension------------------
-`endif
-
             // --------------------------------------------------
             // CSR instructions
             // --------------------------------------------------
@@ -328,7 +293,27 @@
 
         endcase
 
+`ifdef M_EXT
+        // --------------------RV32M Extension-------------------
 
+        if (m_inst) begin
+
+            if (!m_busy && !m_done)
+                m_start = 1'b1;
+
+            m_stall = !m_done;
+
+            if (m_done)
+                alu_result = m_result;
+            else
+                alu_result = '0;
+
+        end
+        
+        // -------------------RV32M Extension--------------------
+
+`endif //M_EXT
+        
         // ------------------------------------------------------
         // Branch target calculation
         // ------------------------------------------------------
@@ -405,10 +390,18 @@
             // Later stage overrides this stage!
             status_backwards_out = status_backwards_in; // STALL from MEM or JUMP from WB
             jump_address_backwards_out = jump_address_backwards_in;
-
         end else begin
             status_backwards_out = local_backwards_status;
             jump_address_backwards_out = jump_address;
+        end
+    end
+
+
+`ifdef M_EXT
+            if (m_stall) 
+                status_backwards_out = pipeline_status::STALL;
+            
+`endif //M_EXT
         end
     end
 
@@ -434,6 +427,273 @@
     end
 
 
+`ifdef M_EXT
+
+    always_ff @(posedge clk) begin
+
+        if (rst) begin
+
+            m_state   <= instruction::M_IDLE;
+            m_done    <= 1'b0;
+            m_result  <= 32'b0;
+            counter   <= 6'd0;
+            product   <= 64'd0;
+            multiplicand <= 64'd0;
+            multiplier   <= 32'd0;
+            quotient  <= 32'd0;
+            remainder <= 33'd0;
+            divisor   <= 32'd0;
+            sign_prod <= 1'b0;
+            sign_quot <= 1'b0;
+            sign_rem  <= 1'b0;
+
+        end
+
+        else begin
+
+            m_done <= 1'b0;
+
+            case (m_state)
+
+            //----------------------------------------------------
+            // IDLE
+            //----------------------------------------------------
+
+            instruction::M_IDLE: begin
+
+                if (m_start) begin
+
+                    case (instruction_in.op)
+
+                    //============================================
+                    // MULTIPLY
+                    //============================================
+
+                    op::MUL,
+                    op::MULH,
+                    op::MULHU,
+                    op::MULHSU: begin
+
+                        counter <= 6'd32;
+                        product <= 64'd0;
+
+                        case (instruction_in.op)
+
+                        //----------------------------------------
+                        // MUL, MULHU : unsigned × unsigned
+                        //----------------------------------------
+                        op::MUL,
+                        op::MULHU: begin
+                            sign_prod    <= 1'b0;
+                            multiplicand <= {32'd0, rs1_data_in};
+                            multiplier   <= rs2_data_in;
+                        end
+
+                        //----------------------------------------
+                        // MULH : signed × signed
+                        //----------------------------------------
+                        op::MULH: begin
+                            sign_prod    <= rs1_data_in[31] ^ rs2_data_in[31];
+                            multiplicand <= {32'd0, op_a_abs_signed};
+                            multiplier   <= op_b_abs_signed;
+                        end
+
+                        //----------------------------------------
+                        // MULHSU : signed × unsigned
+                        //----------------------------------------
+                        op::MULHSU: begin
+                            sign_prod    <= rs1_data_in[31];
+                            multiplicand <= {32'd0, op_a_abs_signed};
+                            multiplier   <= rs2_data_in;
+                        end
+
+                        default: ;
+                        endcase
+
+                        m_state <= instruction::M_MUL;
+
+                    end
+
+                    //============================================
+                    // DIVIDE
+                    //============================================
+
+                    op::DIV,
+                    op::DIVU,
+                    op::REM,
+                    op::REMU: begin
+
+                        // Divide by zero
+                        if (rs2_data_in == 32'd0) begin
+
+                            case (instruction_in.op)
+
+                            op::DIV,
+                            op::DIVU:
+                                m_result <= 32'hFFFF_FFFF;
+
+                            op::REM,
+                            op::REMU:
+                                m_result <= rs1_data_in;
+
+                            default: ;
+                            endcase
+
+                            m_done <= 1'b1;
+
+                        end
+
+                        // Signed overflow: INT_MIN / -1
+                        else if ((instruction_in.op == op::DIV ||
+                                 instruction_in.op == op::REM) &&
+                                 rs1_data_in == 32'h8000_0000 &&
+                                 rs2_data_in == 32'hFFFF_FFFF) begin
+
+                            case (instruction_in.op)
+
+                            op::DIV:
+                                m_result <= 32'h8000_0000;
+
+                            op::REM:
+                                m_result <= 32'd0;
+
+                            default: ;
+                            endcase
+
+                            m_done <= 1'b1;
+
+                        end
+
+                        // Start iterative divider
+                        else begin
+
+                            counter   <= 6'd32;
+                            remainder <= 33'd0;
+
+                            case (instruction_in.op)
+                            op::DIV: begin
+                                sign_quot <= rs1_data_in[31] ^ rs2_data_in[31];
+                                sign_rem  <= rs1_data_in[31];
+                                quotient  <= op_a_abs_signed;
+                                divisor   <= op_b_abs_signed;
+                            end
+                            op::REM: begin
+                                sign_quot <= rs1_data_in[31] ^ rs2_data_in[31];
+                                sign_rem  <= rs1_data_in[31];
+                                quotient  <= op_a_abs_signed;
+                                divisor   <= op_b_abs_signed;
+                            end
+                            op::DIVU: begin
+                                sign_quot <= 1'b0;
+                                sign_rem  <= 1'b0;
+                                quotient  <= rs1_data_in;
+                                divisor   <= rs2_data_in;
+                            end
+                            op::REMU: begin
+                                sign_quot <= 1'b0;
+                                sign_rem  <= 1'b0;
+                                quotient  <= rs1_data_in;
+                                divisor   <= rs2_data_in;
+                            end
+                            default: ;
+                            endcase
+
+                            m_state <= instruction::M_DIV;
+
+                        end
+
+                    end
+
+                    default: ;
+                    endcase
+
+                end
+
+            end
+
+            //----------------------------------------------------
+            // MULTIPLIER
+            //----------------------------------------------------
+
+            instruction::M_MUL: begin
+
+                if (counter != 6'd0) begin
+                    if (multiplier[0]) begin
+                        product <= product + multiplicand;
+                    end
+                    multiplicand <= multiplicand << 1;
+                    multiplier   <= multiplier >> 1;
+                    counter      <= counter - 6'd1;
+                end
+                else begin
+                    logic [63:0] corrected_product;
+                    corrected_product = sign_prod ? -product : product;
+
+                    if (instruction_in.op == op::MUL)
+                        m_result <= corrected_product[31:0];
+                    else
+                        m_result <= corrected_product[63:32];
+
+                    m_done  <= 1'b1;
+                    m_state <= instruction::M_IDLE;
+                end
+
+            end
+
+            //----------------------------------------------------
+            // DIVIDER
+            //----------------------------------------------------
+
+            instruction::M_DIV: begin
+
+                if (counter != 6'd0) begin
+                    logic [32:0] next_rem;
+                    logic [32:0] sub_add_rem;
+                    next_rem = {remainder[31:0], quotient[31]};
+
+                    if (remainder[32] == 1'b0)
+                        sub_add_rem = next_rem - {1'b0, divisor};
+                    else
+                        sub_add_rem = next_rem + {1'b0, divisor};
+
+                    remainder <= sub_add_rem;
+                    quotient  <= {quotient[30:0], ~sub_add_rem[32]};
+
+                    counter <= counter - 6'd1;
+                end
+                else begin
+                    logic [32:0] restored_remainder;
+                    logic [31:0] final_quotient;
+                    logic [31:0] final_remainder;
+
+                    restored_remainder = remainder[32] ? (remainder + {1'b0, divisor}) : remainder;
+
+                    final_quotient  = sign_quot ? -quotient : quotient;
+                    final_remainder = sign_rem ? -restored_remainder[31:0] : restored_remainder[31:0];
+
+                    if (instruction_in.op == op::DIV || instruction_in.op == op::DIVU)
+                        m_result <= final_quotient;
+                    else
+                        m_result <= final_remainder;
+
+                    m_done  <= 1'b1;
+                    m_state <= instruction::M_IDLE;
+                end
+
+            end
+
+            default: begin
+                m_state <= instruction::M_IDLE;
+            end
+            endcase
+
+        end
+
+    end
+
+`endif //M_EXT
+
+
     // ==========================================================
     // Pipeline Registers
     // Update only when pipeline not stalled
@@ -454,7 +714,7 @@
         else if (status_backwards_in == pipeline_status::JUMP) begin
             status_forwards_out <= pipeline_status::BUBBLE;
         end
-        else if (status_backwards_in == pipeline_status::STALL) begin
+        else if (status_backwards_in == pipeline_status::STALL `ifdef M_EXT || m_stall `endif) begin
             // Freeze pipeline registers
         end
         else if (pipeline_forwards_valid) begin
@@ -499,7 +759,7 @@
         op::CSRRWI, op::CSRRSI, op::CSRRCI
     }); // Not ready for forwarding, STALL decode
 
-    assign forwarding_out.data_valid = bypass_ready;
+    assign forwarding_out.data_valid = bypass_ready `ifdef M_EXT && !m_stall `endif;
 
     assign forwarding_out.data = alu_result;
 
