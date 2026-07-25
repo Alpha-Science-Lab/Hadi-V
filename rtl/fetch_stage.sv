@@ -21,11 +21,6 @@ module fetch_stage (
     input  pipeline_status::backwards_t status_backwards_in,
     input  logic [31:0] jump_address_backwards_in,
 
-    // Forwarding interface
-    input forwarding::t exe_forwarding_in,
-    input forwarding::t mem_forwarding_in,
-    input forwarding::t wb_forwarding_in,
-    
     // Branch prediction interface
     input  branch_pred_pkg::update_t branch_pred_update_in,
     output branch_pred_pkg::pred_t   branch_pred_out
