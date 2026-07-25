@@ -26,8 +26,8 @@
 );
     import branch_pred_pkg::*;
 
-    logic [54:0] entry;
-    logic [54:0] curr_entry, next_entry;
+    logic [32:0] entry;
+    logic [32:0] curr_entry, next_entry;
 
     logic [7:0] index;
     logic [29:0] tag;
