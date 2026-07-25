@@ -59,16 +59,6 @@
     output instruction::t instruction_reg_out,
 
     //============================================================
-    // Branch predictor signals
-    //============================================================
-
-    // Update branch history from execute stage
-    input  branch_pred_pkg::update_t branch_pred_update_in,
-
-    // Pass prediction to execute stage
-    output branch_pred_pkg::pred_t branch_pred_out,
-
-    //============================================================
     // Pipeline control signals
     //============================================================
 
@@ -181,25 +171,6 @@
         .write_data(wb_forwarding_in.data),
         .write_enable(wb_forwarding_in.data_valid)
     );
-
-    //============================================================
-    // Branch Predictor
-    //============================================================    
-
-    dyn_branch_pred branch_pred(
-        .clk(clk),
-
-        .program_counter_in(program_counter_in),
-        .instruction_in(decoded_instruction),
-
-        .pred_update_in(branch_pred_update_in),
-        .pred_jump_valid_out(pred_jump_valid),
-
-        .pred_out(pred_out_d),
-        .jump_instr(is_jump),
-        .branch_instr(is_branch)
-    );
-
 
 
     //============================================================

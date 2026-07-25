@@ -169,15 +169,14 @@
 
         source_data  = 32'b0;
 
-        // Propagate incoming status
-        status_forwards_next = status_forwards_in;
-
 `ifdef M_EXT
         m_start = 1'b0;
         m_stall = 1'b0;
-`endif
+`endif  
+        
+        // Propagate incoming status
+        status_forwards_next = status_forwards_in;
         local_backwards_status = pipeline_status::READY;
-
 
         // ------------------------------------------------------
         // Instruction execution
@@ -393,9 +392,6 @@
         end else begin
             status_backwards_out = local_backwards_status;
             jump_address_backwards_out = jump_address;
-        end
-    end
-
 
 `ifdef M_EXT
             if (m_stall) 
