@@ -354,7 +354,7 @@
         // Local backwards control
         // ------------------------------------------------------
 
-        if(branch_pred_in.valid) begin
+        if (branch_pred_in.valid) begin
 
             unique case ({branch_pred_in.taken, branch_taken})
                 2'b00: begin
@@ -363,16 +363,18 @@
                     local_backwards_status = pipeline_status::READY;
                 end
                 2'b01: begin
-                    /* Incorrectly predicted | Not taken */
+                    /* Incorrectly predicted | Actually Taken (BTB Miss) */
                     // Pipeline Flush
-                    local_backwards_status = pipeline_status::JUMP;                    
+                    local_backwards_status = pipeline_status::JUMP;
+                    // jump_address = program_counter_in + instruction_in.immediate;
+                    // next_pc      = jump_address;
                 end
                 2'b10: begin
-                    /* Incorrectly predicted | Taken */
+                    /* Incorrectly predicted | Actually Not Taken */
                     // Pipeline Flush
                     local_backwards_status = pipeline_status::JUMP;
                     jump_address = program_counter_in + 4;
-                    next_pc = jump_address;
+                    next_pc      = jump_address;
                 end
                 2'b11: begin
                     /* Correctly predicted | Taken */
@@ -383,8 +385,9 @@
                 default:;
             endcase
 
-        end else local_backwards_status = pipeline_status::READY;   
-
+        end else begin
+            local_backwards_status = pipeline_status::READY;
+        end
     end
 
 
