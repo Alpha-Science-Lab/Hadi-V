@@ -57,6 +57,15 @@ package instruction;
         immediate: 32'b0
     };
 
+    // RV32M
+`ifdef M_EXT    
+    typedef enum logic [2:0] {
+        M_IDLE,
+        M_MUL,
+        M_DIV
+    } m_state_t;
+`endif    
+
     typedef struct packed {
         op::t op;
         logic [4:0] rd_address;
