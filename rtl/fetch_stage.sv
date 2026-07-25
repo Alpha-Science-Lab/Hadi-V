@@ -118,21 +118,13 @@ module fetch_stage (
                 default: begin // READY
                     if (wb.ack) begin
                         if(pred_jump_valid) begin
-                            if(wb.dat_miso[6:0] == 7'b1101111 
-                            || wb.dat_miso[6:0] == 7'b1100011) begin
+                            if(wb.dat_miso[6:0] == 7'b1100011 
+                            || wb.dat_miso[6:0] == 7'b1101111) begin
                                 // Branch or JAL
                                 pc <= pc + imm_for_jal_jalr_branch;
-                            end else if (wb.dat_miso[6:0] == 7'b1100111) begin 
-                                // JALR
-                                if (wb.dat_miso[19:15] == 5'b00000) begin
-                                    // rs1 is x0
-                                    pc <= imm_for_jal_jalr_branch & ~32'b1;
-                                end else begin
-                                    // rs1 is not x0: Decode stage will redirect
-                                    pc <= pc + 4;
-                                end
-                            end else begin
-                                pc <= pc + 4;
+                            end else begin 
+                                // JALR rs1 as x0
+                                pc <= imm_for_jal_jalr_branch & ~32'b1;
                             end
                         end
                         else pc <= pc + 4;

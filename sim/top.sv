@@ -105,7 +105,7 @@ module top;
                 end
                 2: begin
                     print_test_done();
-                    $fflush();
+                    // $fflush();
                     $finish();
                 end
             endcase
