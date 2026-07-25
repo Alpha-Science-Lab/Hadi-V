@@ -7,11 +7,13 @@
 module register_file (
     input logic clk,
     input logic rst,
+
     // read ports
     input  logic [4:0]  read_address1,
     output logic [31:0] read_data1,
     input  logic [4:0]  read_address2,
     output logic [31:0] read_data2,
+    
     // write port
     input  logic [4:0]  write_address,
     input  logic [31:0] write_data,
@@ -58,9 +60,10 @@ module register_file (
 
 
     // Asynchronous Read
-    assign read_data1 = (read_address1 == 5'd0) ? 32'b0 : registers[read_address1];
-    assign read_data2 = (read_address2 == 5'd0) ? 32'b0 : registers[read_address2];
-
+    assign read_data1 = (read_address1 == 5'd0) ? 
+        32'b0 : registers[read_address1];
+    assign read_data2 = (read_address2 == 5'd0) ? 
+        32'b0 : registers[read_address2];
 
     // TODO: Delete the following line and implement this module.
     // ref_register_file golden(.*);

@@ -10,7 +10,6 @@
 
     // From Decode Stage
     input  logic [31:0] program_counter_in,
-    input  instruction::t instruction_in,
 
     // Update from Execute Stage
     input  branch_pred_pkg::update_t pred_update_in,
@@ -22,21 +21,16 @@
     output branch_pred_pkg::pred_t pred_out,
 
     // Jump or branch instruction
-    output logic jump_instr,
-    output logic branch_instr
+    input logic is_jump,
+    input logic is_branch
 );
-
     import branch_pred_pkg::*;
-
-    // btb_entry_t entry;
-    // btb_entry_t curr_entry, next_entry;
 
     logic [32:0] entry;
     logic [32:0] curr_entry, next_entry;
 
     logic [7:0] index;
     logic [29:0] tag;
-    logic is_branch, is_jump;
     logic [7:0] upd_index;
     logic [29:0] upd_tag;
 
@@ -44,39 +38,12 @@
     // BTB
     //============================================================
 
-    // btb_entry_t btb [255:0];
     (* ram_style = "distributed" *)
     logic [32:0] btb [255:0];
 
     assign index = program_counter_in[9:2];
     assign tag = program_counter_in[31:2];
     assign entry = btb[index];
-
-    //============================================================
-    // Instruction Decode
-    //============================================================
-
-    always_comb begin
-        is_branch = 1'b0;
-        is_jump = 1'b0;
-
-        case (instruction_in.op)
-
-            op::BEQ,
-            op::BNE,
-            op::BLT,
-            op::BGE,
-            op::BLTU,
-            op::BGEU:
-                is_branch = 1'b1;
-
-            op::JAL,
-            op::JALR:
-                is_jump = 1'b1;
-
-            default:;
-        endcase
-    end
     
 
     //============================================================
@@ -104,13 +71,10 @@
 
         else if (is_branch) begin
 
-            // if (entry.valid && entry.tag == tag) begin
             if (entry[0] && entry[30:1] == tag) begin
 
-                // pred_out.taken = entry.counter[1];
                 pred_out.taken = entry[32];
 
-                // if (entry.counter[1]) pred_jump_valid_out = 1'b1;
                 if (entry[32]) pred_jump_valid_out = 1'b1;
 
             end else pred_out.taken = 1'b0; /* Not found in BTB*/
@@ -139,19 +103,13 @@
 
         if (pred_update_in.taken) begin
 
-            // if (curr_entry.counter != 2'b11)
-            if (curr_entry[32:31] != 2'b11) begin
-                // next_entry.counter = curr_entry.counter + 2'b01;
+            if (curr_entry[32:31] != 2'b11)
                 next_entry[32:31] = curr_entry[32:31] + 2'b01;
-            end
 
         end else begin
 
-            // if (curr_entry.counter != 2'b00)
-            if (curr_entry[32:31] != 2'b00) begin
-                // next_entry.counter = curr_entry.counter - 2'b01;
+            if (curr_entry[32:31] != 2'b00)
                 next_entry[32:31] = curr_entry[32:31] - 2'b01;
-            end
 
         end
     end
@@ -168,7 +126,6 @@
             // Existing Entry
             //------------------------------------------------
 
-            // if (curr_entry.valid && curr_entry.tag == upd_tag)
             if (curr_entry[0] && curr_entry[30:1] == upd_tag)
                 btb[upd_index] <= next_entry;                
 
@@ -176,17 +133,11 @@
             // Add New Entry
             //------------------------------------------------
 
-            else if (pred_update_in.taken) begin
-                // btb[upd_index].counter <= 2'b11;
-                // btb[upd_index].valid <= 1'b1;
-                // btb[upd_index].tag <= upd_tag;
+            else if (pred_update_in.taken)
                 btb[upd_index] <= {2'b11,upd_tag,1'b1};
-            end
+            
             /* If not taken don't bother add*/
         end
     end
-
-    assign jump_instr = is_jump;
-    assign branch_instr = is_branch;
 
 endmodule
