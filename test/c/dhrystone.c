@@ -81,7 +81,7 @@ int strcmp(const char* s1, const char* s2) {
 
 #define Version "C, Version 2.2"
 
-#define HZ 66666666
+#define HZ 66666667
 #define Too_Small_Time 1
 #define CLOCK_TYPE "rdcycle()"
 #define Start_Timer() Begin_Time = read_csr(mcycle)
