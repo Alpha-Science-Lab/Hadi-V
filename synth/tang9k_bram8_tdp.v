@@ -1,10 +1,10 @@
 
 module tang9k_bram8_tdp #(
-    parameter integer DEPTH = 2048,
-    parameter string INIT_FILE = ""
+    parameter DEPTH = 2048,
+    parameter INIT_FILE = ""
 )(
     input  wire        clk,
-    input  wire        rst,
+    input  wire        rst_n,
 
     // Port A
     input  wire        ce_a,
@@ -36,8 +36,8 @@ module tang9k_bram8_tdp #(
     // ----------------------------------------------------------
     // Port A
     // ----------------------------------------------------------
-    always_ff @(posedge clk) begin
-        if(rst) begin
+    always @(posedge clk) begin
+        if(~rst_n) begin
             dout_ar <= 8'b0;
         end else begin
             if (ce_a & oce_a & !we_a) begin
@@ -46,7 +46,7 @@ module tang9k_bram8_tdp #(
         end
     end
 
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         if(ce_a & we_a) begin
             mem[addr_a] <= din_a;
         end
@@ -57,8 +57,8 @@ module tang9k_bram8_tdp #(
     // ----------------------------------------------------------
     // Port B
     // ----------------------------------------------------------
-    always_ff @(posedge clk) begin
-        if(rst) begin
+    always @(posedge clk) begin
+        if(~rst_n) begin
             dout_br <= 8'b0;
         end else begin
             if (ce_b & oce_b & !we_b) begin
@@ -67,7 +67,7 @@ module tang9k_bram8_tdp #(
         end
     end
 
-    always_ff @(posedge clk) begin
+    always @(posedge clk) begin
         if(ce_b & we_b) begin
             mem[addr_b] <= din_b;
         end

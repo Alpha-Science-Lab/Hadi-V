@@ -12,6 +12,7 @@ endif
 
 # Binaries
 VERILATOR ?= verilator
+PYTHON    ?= python3
 
 # CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
 CC = riscv32-unknown-elf-gcc
@@ -114,10 +115,15 @@ synthesis_cpu:
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/cpu
 	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl -tclargs $(M_EXT)
 
+################################################################################
+#                                  Tang Nano 9k                                #
+################################################################################
+
 .PHONY: synthesis_gw
 synthesis_gw:$(TANG9K_BITSTREAM)
 
 $(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
+	@ $(PYTHON) split_mem.py $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR) 
 	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT)
 
@@ -128,6 +134,10 @@ $(GOWIN_PLL_WRAPPER):
 .PHONY: flash_tang9k
 flash_tang9k: $(TANG9K_BITSTREAM)
 	openFPGALoader -b tangnano9k $(TANG9K_BITSTREAM)
+
+.PHONY: del_mem_inits
+del_mem_inits:
+	@ rm -rf $(SYNTH_DIR)/tang9k_mem_inits/*
 
 ################################################################################
 #                                  Simulation                                  #

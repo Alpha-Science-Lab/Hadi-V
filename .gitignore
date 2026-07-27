@@ -3,5 +3,4 @@
 /build/
 
 # memory images
-*.ini
-*.mem 
+/synth/tang9k_mem_inits/

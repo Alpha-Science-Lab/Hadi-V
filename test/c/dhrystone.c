@@ -81,7 +81,7 @@ int strcmp(const char* s1, const char* s2) {
 
 #define Version "C, Version 2.2"
 
-#define HZ 66666666
+#define HZ 66666667
 #define Too_Small_Time 1
 #define CLOCK_TYPE "rdcycle()"
 #define Start_Timer() Begin_Time = read_csr(mcycle)
@@ -106,7 +106,7 @@ typedef int     One_Thirty;
 typedef int     One_Fifty;
 typedef char    Capital_Letter;
 typedef int     Boolean;
-typedef char    Str_30 [31];
+typedef char    Str_30 [32];  /* 31 chars + 1 null byte */
 typedef int     Arr_1_Dim [50];
 typedef int     Arr_2_Dim [50] [50];
 
@@ -375,7 +375,7 @@ int main (void) {
     else if (Int_3_Loc != 7) failed = 13;
     else if (Enum_Loc != 1) failed = 14;
     else if (strcmp(Str_1_Loc, "DHRYSTONE PROGRAM, 1'ST STRING") != 0) failed = 15;
-    else if (strcmp(Str_2_Loc, "DHRYSTONE PROGRAM, 3'RD STRING") != 0) failed = 16;
+    else if (strcmp(Str_2_Loc, "DHRYSTONE PROGRAM, 2'ND STRING") != 0) failed = 16;
 
     if (failed != 0) {
         *((volatile uint32_t*) 0x00480014) = 0xEEEE0000 | failed;
@@ -410,7 +410,7 @@ void Proc_1 (Rec_Pointer Ptr_Val_Par) {
 
 void Proc_2 (One_Fifty *Int_Par_Ref) {
     One_Fifty  Int_Loc;  
-    Enumeration   Enum_Loc;
+    Enumeration   Enum_Loc = Ident_1;
 
     Int_Loc = *Int_Par_Ref + 10;
     do {

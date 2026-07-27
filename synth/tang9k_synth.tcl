@@ -39,6 +39,7 @@ set SOURCES {
 
     synth/gowin_rpll.v
     synth/tang9k_bram8_tdp.v
+    synth/tang9k_ram_32kib.sv
     synth/tang9k_ram.sv
     synth/tang9k_mcu.sv
 
