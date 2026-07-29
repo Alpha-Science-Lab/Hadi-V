@@ -35,22 +35,13 @@ module tang9k_mcu #(
 
     logic [4:0] buttons;
     
-    // for (genvar i = 0; i < 5; i++) begin : sync_buttons
-    //     synchronizer button_sync(
-    //         .clk(clk),
-    //         .async_in(buttons_async[i]),
-    //         .sync_out(buttons[i])
-    //     );
-    // end
-
-    synchronizer button_sync(
-        .clk(clk),
-        .async_in(buttons_async[0]),
-        .sync_out(buttons[0])
-    );
-    /* buttons[4:2] permanent inactive*/
-    assign buttons[4:2] = 3'b1;
-    assign buttons[1] = buttons_async[1];
+    for (genvar i = 0; i < 5; i++) begin : sync_buttons
+        synchronizer button_sync(
+            .clk(clk),
+            .async_in(buttons_async[i]),
+            .sync_out(buttons[i])
+        );
+    end
 
     logic uart_rx;
     synchronizer uart_rx_sync(

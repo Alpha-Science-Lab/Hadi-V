@@ -4,7 +4,7 @@ module tang9k_bram8_tdp #(
     parameter INIT_FILE = ""
 )(
     input  wire        clk,
-    input  wire        rst_n,
+    input  wire        rst,
 
     // Port A
     input  wire        ce_a,
@@ -37,7 +37,7 @@ module tang9k_bram8_tdp #(
     // Port A
     // ----------------------------------------------------------
     always @(posedge clk) begin
-        if(~rst_n) begin
+        if(rst) begin
             dout_ar <= 8'b0;
         end else begin
             if (ce_a & oce_a & !we_a) begin
@@ -58,7 +58,7 @@ module tang9k_bram8_tdp #(
     // Port B
     // ----------------------------------------------------------
     always @(posedge clk) begin
-        if(~rst_n) begin
+        if(rst) begin
             dout_br <= 8'b0;
         end else begin
             if (ce_b & oce_b & !we_b) begin

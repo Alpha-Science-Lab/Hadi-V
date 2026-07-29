@@ -18,7 +18,7 @@ module tang9k_ram_32kib #(
     parameter INIT_FILE_3_3 = ""
 )(
     input  wire         clk,
-    input  wire         rst_n,
+    input  wire         rst,
 
     // Port A
     input  wire         ce_a,
@@ -91,7 +91,7 @@ module tang9k_ram_32kib #(
                 ) bram (
 
                     .clk(clk),
-                    .rst_n(rst_n),
+                    .rst(rst),
 
                     // Port A
                     .ce_a (ce_a  && (row_a == r)),

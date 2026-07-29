@@ -53,7 +53,7 @@ module tang9k_ram #(
         .INIT_FILE_3_3(INIT_FILE_3_3)
     ) ram_32kib (
         .clk   (clk),
-        .rst_n (~rst), /* ram employs active low reset*/
+        .rst   (rst),
 
         .ce_a  (port_a.we),
         .oce_a (1'b1),

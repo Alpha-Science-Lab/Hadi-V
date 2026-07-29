@@ -22,18 +22,20 @@ module tang9k_top(
     output logic uart_tx
 );
 
+    logic pll_clk_o, pll_locked;
+    logic [15:0] mcu_leds;
+    logic [4:0]  mcu_buttons;
+
     // --------------------------------------------------------------------------------------------
     // |                                     Clock Generation                                     |
     // --------------------------------------------------------------------------------------------
     import clk_params::*;
 
-    logic clk_o;
-    logic locked;
 
     pll pll_inst(
         .clock_in(clk_27mhz), // clkin
-        .clock_out(clk_o), // clkout
-        .locked(locked)
+        .clock_out(pll_clk_o), // clkout
+        .locked(pll_locked)
     );
 
     // --------------------------------------------------------------------------------------------
@@ -44,11 +46,18 @@ module tang9k_top(
         .CLK_FREQUENCY_MHZ(GW_SYS_CLK_FREQ_MHZ),
         .UART_BAUD_RATE(115200)
     ) mcu (
-        .clk(clk_o),
-        .clk_mem(~clk_o),
-        .leds(leds),
-        .buttons_async(buttons_async || {~locked,1'b0}), // buttons_async[1] is connected to reset
+        .clk(pll_clk_o),
+        .clk_mem(~pll_clk_o),
+        .leds(mcu_leds),
+        .buttons_async(mcu_buttons),
         .uart_rx_async(uart_rx_async),
         .uart_tx(uart_tx)
     );
+
+
+    assign leds             = mcu_leds[5:0];
+    assign mcu_buttons[4:2] = 3'b111;
+    assign mcu_buttons[1]   = ~buttons_async[1] || ~pll_locked;
+    assign mcu_buttons[0]   = buttons_async[0];
+
 endmodule
