@@ -26,10 +26,10 @@ XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.2/
 # XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO ?= $(XILINX_VIVADO)/bin/vivado
 
-GOWIN_SH    ?= LD_LIBRARY_PATH=/tools/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= \
-			   gw_sh
+GOWIN_SH     = LD_LIBRARY_PATH=$(CURDIR)/build/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= \
+			   $(CURDIR)/build/gowin_eda/IDE/bin/gw_sh
 
-GOWIN_PLL   = gowin_pll
+GOWIN_PLL    = $(CURDIR)/build/oss-cad-suite/bin/gowin_pll
 
 # Directories
 SIM_DIR = sim
@@ -96,7 +96,7 @@ help:
 
 .PHONY: clean
 clean::
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)/sim $(BUILD_DIR)/std $(BUILD_DIR)/synth $(BUILD_DIR)/test $(BUILD_DIR)/show.sh
 
 ################################################################################
 #                                   Synthesis                                  #

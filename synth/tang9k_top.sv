@@ -57,7 +57,7 @@ module tang9k_top(
 
     assign leds             = mcu_leds[5:0];
     assign mcu_buttons[4:2] = 3'b111;
-    assign mcu_buttons[1]   = ~buttons_async[1] || ~pll_locked;
+    assign mcu_buttons[1]   = ~buttons_async[1];
     assign mcu_buttons[0]   = buttons_async[0];
 
 endmodule

@@ -55,16 +55,16 @@ module tang9k_ram #(
         .clk   (clk),
         .rst   (rst),
 
-        .ce_a  (port_a.we),
+        .ce_a  (port_a.cyc && port_a.stb),
         .oce_a (1'b1),
-        .we_a  (port_a.sel),
+        .we_a  (port_a.we ? port_a.sel : 4'b0000),
         .addr_a(port_a.adr),
         .din_a (port_a.dat_mosi),
         .dout_a(dout_a),
 
-        .ce_b  (port_b.we),
+        .ce_b  (port_b.cyc && port_b.stb),
         .oce_b (1'b1),
-        .we_b  (port_b.sel),
+        .we_b  (port_b.we ? port_b.sel : 4'b0000),
         .addr_b(port_b.adr),
         .din_b (port_b.dat_mosi),
         .dout_b(dout_b)
