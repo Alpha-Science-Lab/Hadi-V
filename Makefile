@@ -42,6 +42,7 @@ STD_LIB_DIR = std
 SYNTH_DIR = synth
 DEFINES_DIR = defines
 
+APP_DIR = app
 TEST_DIR = test
 ASM_DIR = $(TEST_DIR)/asm
 C_DIR = $(TEST_DIR)/c
@@ -230,6 +231,49 @@ $(BUILD_DIR)/$(C_DIR)/%/out.dis: $(BUILD_DIR)/$(C_DIR)/%/out.elf
 $(C_TEST_NAMES): $(C_DIR)/%: $(BUILD_DIR)/$(C_DIR)/%/init.mem $(BUILD_DIR)/$(C_DIR)/%/out.hex $(BUILD_DIR)/$(C_DIR)/%/out.elf $(BUILD_DIR)/$(C_DIR)/%/out.dis $(BUILD_DIR)/$(SIM_DIR)/top
 	cd $(BUILD_DIR)/$(C_DIR)/$* && $(CURDIR)/$(BUILD_DIR)/$(SIM_DIR)/top
 	@echo 'gtkwave $(BUILD_DIR)/$(C_DIR)/$*/sim.fst $(SAVES_DIR)/pipeline.gtkw' > $(BUILD_DIR)/show.sh
+
+
+################################################################################
+#                                C Applications                               #
+################################################################################
+
+# Collect C applications
+C_APPS = $(wildcard $(APP_DIR)/*.c)
+C_APP_NAMES = $(patsubst $(APP_DIR)/%.c, $(APP_DIR)/%, $(C_APPS))
+
+# Compile application
+$(BUILD_DIR)/$(APP_DIR)/%/out.o: $(APP_DIR)/%.c
+	@ mkdir -p $(BUILD_DIR)/$(APP_DIR)/$*
+	$(CC) $(RISCV_ARCH) -fdata-sections -ffunction-sections \
+		-c -o $@ -I $(STD_LIB_DIR)/include $<
+
+# Link application
+$(BUILD_DIR)/$(APP_DIR)/%/out.elf: $(BUILD_DIR)/$(APP_DIR)/%/out.o \
+	$(C_LIB_OBJ) \
+	$(STD_LIB_DIR)/hades-v.ld
+	$(CC) $(RISCV_ARCH) -o $@ \
+		-nostdlib -nostartfiles \
+		-T $(STD_LIB_DIR)/hades-v.ld \
+		$< $(C_LIB_OBJ) -lgcc \
+		-Wl,--no-warn-rwx-segments \
+		-Wl,--gc-sections
+
+# Create hex file
+$(BUILD_DIR)/$(APP_DIR)/%/out.hex: $(BUILD_DIR)/$(APP_DIR)/%/out.elf
+	$(OBJCOPY) -O ihex $< $@
+
+
+# Create disassembly
+$(BUILD_DIR)/$(APP_DIR)/%/out.dis: $(BUILD_DIR)/$(APP_DIR)/%/out.elf
+	$(OBJDUMP) -d -x $< > $@
+
+# Build application
+.PHONY: $(C_APP_NAMES)
+$(C_APP_NAMES): $(APP_DIR)/%: $(BUILD_DIR)/$(APP_DIR)/%/out.hex $(BUILD_DIR)/$(APP_DIR)/%/out.elf \
+	$(BUILD_DIR)/$(APP_DIR)/%/out.dis
+	@echo "Built application: $*"
+	@echo "HEX: $(BUILD_DIR)/$(APP_DIR)/$*/out.hex"
+
 
 ################################################################################
 #                             SystemVerilog Tests                              #
