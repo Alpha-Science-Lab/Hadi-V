@@ -122,18 +122,18 @@ synthesis_cpu:
 .PHONY: synthesis_gw
 synthesis_gw:$(TANG9K_BITSTREAM)
 
+# .PHONY: flash_tang9k
+flash_tang9k: $(TANG9K_BITSTREAM)
+	openFPGALoader -b tangnano9k $(TANG9K_BITSTREAM)
+
 $(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
 	@ $(PYTHON) split_mem.py $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
-	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR) 
-	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT)
+	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/tang9k
+	cd $(BUILD_DIR)/$(SYNTH_DIR)/tang9k && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT)
 
 #Generate the PLL wrapper
 $(GOWIN_PLL_WRAPPER):
 	$(GOWIN_PLL) -d "GW1NR-9 C6/I5" -i 27 -o 16 -f $@
-
-.PHONY: flash_tang9k
-flash_tang9k: $(TANG9K_BITSTREAM)
-	openFPGALoader -b tangnano9k $(TANG9K_BITSTREAM)
 
 .PHONY: del_mem_inits
 del_mem_inits:
