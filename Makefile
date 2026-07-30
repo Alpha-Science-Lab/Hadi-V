@@ -124,7 +124,7 @@ synthesis_gw:$(TANG9K_BITSTREAM)
 
 # .PHONY: flash_tang9k
 flash_tang9k: $(TANG9K_BITSTREAM)
-	openFPGALoader -b tangnano9k $(TANG9K_BITSTREAM)
+	openFPGALoader -b tangnano9k -f $(TANG9K_BITSTREAM)
 
 $(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
 	@ $(PYTHON) split_mem.py $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
