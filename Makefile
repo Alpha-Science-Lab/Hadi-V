@@ -50,6 +50,7 @@ SV_DIR = $(TEST_DIR)/sv
 
 TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
 GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
+SYS_CLK_FREQ      ?= 9
 GOWIN_TCL_SCRIPT  = $(SYNTH_DIR)/tang9k_synth.tcl
 
 ################################################################################
@@ -134,7 +135,7 @@ $(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem $(GOWIN_PLL_WRAPP
 
 #Generate the PLL wrapper
 $(GOWIN_PLL_WRAPPER):
-	$(GOWIN_PLL) -d "GW1NR-9 C6/I5" -i 27 -o 16 -f $@
+	$(GOWIN_PLL) -d "GW1NR-9 C6/I5" -i 27 -o $(SYS_CLK_FREQ) -f $@
 
 .PHONY: del_mem_inits
 del_mem_inits:
