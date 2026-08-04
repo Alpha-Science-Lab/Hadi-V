@@ -1,15 +1,32 @@
 /* File: running_led.c
- * Running LED example for Hadi-V
+ * Running LED example using the hardware timer
  */
 
 #include <stdint.h>
 #include "peripherals.h"
 
-static void delay(volatile uint32_t count)
+#define SYS_CLK_HZ        9000000UL
+#define HALF_SECOND_TICKS (SYS_CLK_HZ / 2)
+
+static uint64_t timer_get(void)
 {
-    while (count--) {
-        __asm__ volatile ("nop");
-    }
+    uint32_t hi1, lo, hi2;
+
+    do {
+        hi1 = *TIMER_MTIMEH_ADDRESS;
+        lo  = *TIMER_MTIME_ADDRESS;
+        hi2 = *TIMER_MTIMEH_ADDRESS;
+    } while (hi1 != hi2);
+
+    return ((uint64_t)hi2 << 32) | lo;
+}
+
+static void delay_half_second(void)
+{
+    uint64_t start = timer_get();
+
+    while ((timer_get() - start) < HALF_SECOND_TICKS)
+        ;
 }
 
 int main(void)
@@ -17,15 +34,14 @@ int main(void)
     uint16_t led = 0;
 
     while (1) {
-        // All LEDs off (1), then turn one LED on (0)
+        // LEDs are active-low
         *LEDS_ADDRESS = (uint16_t)~(1u << led);
 
-        delay(200000);
+        delay_half_second();
 
         led++;
-        if (led >= 6) {
+        if (led >= 6)
             led = 0;
-        }
     }
 
     return 0;
