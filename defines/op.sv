@@ -8,6 +8,7 @@
  * Organization: Alpha Science Lab
  */
 
+// `define M_EXT
 
 /*verilator lint_off UNUSED*/
 

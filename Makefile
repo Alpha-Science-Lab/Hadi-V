@@ -7,61 +7,67 @@
 # Organization: Alpha Science Lab
 
 ifneq ($(words $(CURDIR)),1)
- $(error Unsupported: GNU Make cannot build in directories containing spaces, build elsewhere: '$(CURDIR)')
+	$(error Unsupported: GNU Make cannot build in directories containing spaces, build elsewhere: '$(CURDIR)')
 endif
 
 # Binaries
-VERILATOR ?= verilator
+VERILATOR         ?= verilator
+PYTHON            ?= python3
 
-# CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
-CC = riscv32-unknown-elf-gcc
-# OBJCOPY = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
-OBJCOPY = riscv32-unknown-elf-objcopy
-# OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
-OBJDUMP = riscv32-unknown-elf-objdump
+# CC              = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
+CC                = riscv32-unknown-elf-gcc
+# OBJCOPY         = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
+OBJCOPY           = riscv32-unknown-elf-objcopy
+# OBJDUMP         = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
+OBJDUMP           = riscv32-unknown-elf-objdump
 
-# XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
-XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.2/
-# XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
-VIVADO ?= $(XILINX_VIVADO)/bin/vivado
+# XILINX_VIVADO   ?= /opt/Xilinx/Vivado/2023.2/
+XILINX_VIVADO     ?= /tools/Xilinx/Vivado/2024.2/
+# XILINX_VIVADO   ?= /tools/Xilinx/2025.1/Vivado/
+VIVADO 			  ?= $(XILINX_VIVADO)/bin/vivado
 
-# Directories
-SIM_DIR = sim
-BUILD_DIR = build
-RTL_DIR = rtl
-REF_DIR = ref
-LIB_DIR = lib
-SAVES_DIR = saves
-STD_LIB_DIR = std
-SYNTH_DIR = synth
-DEFINES_DIR = defines
+GOWIN_SH    	  ?= LD_LIBRARY_PATH=/tools/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= gw_sh
+GOWIN_PLL   	  = gowin_pll
 
-TEST_DIR = test
-ASM_DIR = $(TEST_DIR)/asm
-C_DIR = $(TEST_DIR)/c
-SV_DIR = $(TEST_DIR)/sv
-
-################################################################################
-#                            ISA / Feature Selection                           #
-################################################################################
-M_EXT ?= 0
+M_EXT             ?= 0
 
 # ISA configuration
 ifeq ($(M_EXT),1)
-RISCV_ARCH = -march=rv32im_zicsr_zifencei -mabi=ilp32
+	RISCV_ARCH    = -march=rv32im_zicsr_zifencei -mabi=ilp32
 else
-RISCV_ARCH = -march=rv32i_zicsr_zifencei -mabi=ilp32
+	RISCV_ARCH    = -march=rv32i_zicsr_zifencei -mabi=ilp32
 endif
 
 # Verilator Flags
-VERILATOR_FLAGS =
-ifeq ($(M_EXT),1)
-VERILATOR_FLAGS += -DM_EXT
+VERILATOR_FLAGS   =
+VERILATOR_FLAGS   += -cc
+VERILATOR_FLAGS   += -Wall -Wno-fatal
+ifeq ($(M_EXT),1) 
+VERILATOR_FLAGS   += -DM_EXT
 endif
-VERILATOR_FLAGS += -cc
-VERILATOR_FLAGS += -Wall -Wno-fatal
-VERILATOR_FLAGS += -f $(SIM_DIR)/files.txt
-VERILATOR_FLAGS += $(abspath $(wildcard $(REF_DIR)/*.so)) -j
+VERILATOR_FLAGS   += $(abspath $(wildcard $(REF_DIR)/*.so)) -j
+VERILATOR_FLAGS   += -f $(SIM_DIR)/files.txt
+
+DEFINES_DIR       = defines
+REF_DIR           = ref
+STD_LIB_DIR       = std
+# LIB_DIR         = lib
+RTL_DIR           = rtl
+BUILD_DIR         = build
+SIM_DIR           = sim
+SAVES_DIR         = saves
+SYNTH_DIR         = synth
+
+TEST_DIR          = test
+ASM_DIR           = $(TEST_DIR)/asm
+C_DIR             = $(TEST_DIR)/c
+SV_DIR            = $(TEST_DIR)/sv
+
+TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
+GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
+SYS_CLK_FREQ      ?= 9
+GOWIN_TCL_SCRIPT  = $(SYNTH_DIR)/tang9k_synth.tcl
+BOOTLOADER        ?= bootloader
 
 ################################################################################
 #                                  Print Help                                  #
@@ -99,17 +105,35 @@ synthesis: $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)
 	cd $(BUILD_DIR)/$(SYNTH_DIR) && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth.tcl -tclargs $(M_EXT)
 
-################################################################################
-#                              CPU-only Synthesis                              #
-################################################################################
 
 .PHONY: synthesis_cpu
 synthesis_cpu:
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/cpu
-	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && \
-	$(VIVADO) -mode $(MODE) \
-	-source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl \
-	-tclargs $(M_EXT)
+	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl -tclargs $(M_EXT)
+
+################################################################################
+#                                  Tang Nano 9k                                #
+################################################################################
+
+.PHONY: synthesis_gw
+synthesis_gw:$(TANG9K_BITSTREAM)
+
+# .PHONY: flash_tang9k
+flash_tang9k: $(TANG9K_BITSTREAM)
+	openFPGALoader -b tangnano9k -f $(TANG9K_BITSTREAM)
+
+$(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/$(BOOTLOADER)/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
+	@ $(PYTHON) split_mem.py $(BUILD_DIR)/$(C_DIR)/$(BOOTLOADER)/init.mem
+	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/tang9k
+	cd $(BUILD_DIR)/$(SYNTH_DIR)/tang9k && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT)
+
+#Generate the PLL wrapper
+$(GOWIN_PLL_WRAPPER):
+	$(GOWIN_PLL) -d "GW1NR-9 C6/I5" -i 27 -o $(SYS_CLK_FREQ) -f $@
+
+.PHONY: del_mem_inits
+del_mem_inits:
+	@ rm -rf $(SYNTH_DIR)/tang9k_mem_inits/*
 
 ################################################################################
 #                                  Simulation                                  #

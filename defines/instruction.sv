@@ -5,7 +5,7 @@
  * File: instruction.sv
  */
 
-
+// `define M_EXT
 
 /*verilator lint_off UNUSED*/
 

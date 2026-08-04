@@ -24,6 +24,8 @@
  *   - Must propagate immediately without delay
  *   - Later pipeline stages have priority
  */
+
+ // `define M_EXT
  
  module execute_stage (
 

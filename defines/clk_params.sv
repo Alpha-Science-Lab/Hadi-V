@@ -34,7 +34,7 @@ package clk_params;
 
     localparam real SYS_CLK_FREQUENCY_MHZ = (INPUT_CLK_FREQUENCY_MHZ / MMCM_DIV * MMCM_MUL) / MMCM_DIV_0;
     localparam real SYS_CLK_PERIOD_NS     = 1000.000 / SYS_CLK_FREQUENCY_MHZ;
-    // => SYS_CLK: (100 MHz / 1 * 10) / 20 = 50 MHz
+    // => SYS_CLK: (100 MHz / 1 * 10) / 20 = 50 MHz (HaDes-V default)
 
     // --------------------------------------------------------------------------------------------
     // |                                        VGA Clock                                         |

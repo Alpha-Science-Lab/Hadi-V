@@ -6,6 +6,8 @@
  * March 2026
 */
 
+// `define M_EXT
+
 module instruction_decoder (
     input  logic [31:0]   instruction_in,
     output instruction::t instruction_out

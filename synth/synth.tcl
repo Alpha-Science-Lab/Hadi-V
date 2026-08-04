@@ -96,4 +96,4 @@ report_utilization -file reports/utilization_pnr.rpt
 report_power -file reports/power_pnr.rpt
 
 # Generate bitstream
-write_bitstream -force -bin hadi-v.bit
+write_bitstream -force -bin hadi_v.bit
