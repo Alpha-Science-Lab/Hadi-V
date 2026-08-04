@@ -10,7 +10,6 @@
 
     // From Decode Stage
     input  logic [31:0] program_counter_in,
-    input  instruction::t instruction_in,
 
     // Update from Execute Stage
     input  branch_pred_pkg::update_t pred_update_in,
@@ -22,8 +21,8 @@
     output branch_pred_pkg::pred_t pred_out,
 
     // Jump or branch instruction
-    output logic jump_instr,
-    output logic branch_instr
+    input logic is_jump,
+    input logic is_branch
 );
     import branch_pred_pkg::*;
 
@@ -32,7 +31,6 @@
 
     logic [7:0] index;
     logic [29:0] tag;
-    logic is_branch, is_jump;
     logic [7:0] upd_index;
     logic [29:0] upd_tag;
 
@@ -46,32 +44,6 @@
     assign index = program_counter_in[9:2];
     assign tag = program_counter_in[31:2];
     assign entry = btb[index];
-
-    //============================================================
-    // Instruction Decode
-    //============================================================
-
-    always_comb begin
-        is_branch = 1'b0;
-        is_jump = 1'b0;
-
-        case (instruction_in.op)
-
-            op::BEQ,
-            op::BNE,
-            op::BLT,
-            op::BGE,
-            op::BLTU,
-            op::BGEU:
-                is_branch = 1'b1;
-
-            op::JAL,
-            op::JALR:
-                is_jump = 1'b1;
-
-            default:;
-        endcase
-    end
     
 
     //============================================================
@@ -107,7 +79,7 @@
 
             end else pred_out.taken = 1'b0; /* Not found in BTB*/
             /* Hence predict not taken*/
-            
+
         end
     end
 
@@ -156,7 +128,7 @@
 
             if (curr_entry[0] && curr_entry[30:1] == upd_tag)
                 btb[upd_index] <= next_entry;                
-            
+
             //------------------------------------------------
             // Add New Entry
             //------------------------------------------------
@@ -167,8 +139,5 @@
             /* If not taken don't bother add*/
         end
     end
-
-    assign jump_instr = is_jump;
-    assign branch_instr = is_branch;
 
 endmodule

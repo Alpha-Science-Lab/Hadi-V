@@ -25,7 +25,7 @@
  *   - Later pipeline stages have priority
  */
 
-//  `define M_EXT
+ // `define M_EXT
  
  module execute_stage (
 
@@ -36,13 +36,10 @@
     // Operand inputs from register file
     input logic [31:0]   rs1_data_in,
     input logic [31:0]   rs2_data_in,
-
     // Decoded instruction
     input instruction::t instruction_in,
-
     // PC of current instruction
     input logic [31:0]   program_counter_in,
-
 
     // ==========================================================
     // Pipeline register outputs
@@ -50,19 +47,14 @@
 
     // Data used by store or CSR operations
     output logic [31:0]   source_data_reg_out,
-
     // Result written to rd register
     output logic [31:0]   rd_data_reg_out,
-
     // Instruction forwarded to next stage
     output instruction::t instruction_reg_out,
-
     // PC forwarded to next stage
     output logic [31:0]   program_counter_reg_out,
-
     // Next PC (used by fetch stage)
     output logic [31:0]   next_program_counter_reg_out,
-
     // Forwarding bus to earlier stages
     output forwarding::t  forwarding_out,
 
@@ -72,10 +64,9 @@
 
     // Pass prediction to execute stage
     input  branch_pred_pkg::pred_t branch_pred_in,
-
     // Update branch history from execute stage
     output branch_pred_pkg::update_t branch_pred_update_out,
-
+    
     // ==========================================================
     // Pipeline control
     // ==========================================================
@@ -83,11 +74,9 @@
     // Status moving forward through pipeline
     input  pipeline_status::forwards_t  status_forwards_in,
     output pipeline_status::forwards_t  status_forwards_out,
-
     // Status moving backward through pipeline
     input  pipeline_status::backwards_t status_backwards_in,
     output pipeline_status::backwards_t status_backwards_out,
-
     // Jump address propagation
     input  logic [31:0] jump_address_backwards_in,
     output logic [31:0] jump_address_backwards_out
@@ -104,6 +93,19 @@
 
     logic [31:0] source_data;         // Data forwarded for store/CSR
 
+    // Pipeline control helpers
+    pipeline_status::forwards_t  status_forwards_next;
+    pipeline_status::backwards_t local_backwards_status;
+
+    // Status forwards is vaild or not
+    logic pipeline_forwards_valid;
+    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
+
+    bit writes_rd, bypass_ready;
+
+    // Wire that connects to flop
+    branch_pred_pkg::update_t pred_update_out_d;
+    
 `ifdef M_EXT
 
     instruction::m_state_t m_state;
@@ -154,20 +156,6 @@
 
 `endif //M_EXT
 
-    // Pipeline control helpers
-    pipeline_status::forwards_t  status_forwards_next;
-    pipeline_status::backwards_t local_backwards_status;
-
-    // Status forwards is vaild or not
-    logic pipeline_forwards_valid;
-    assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
-
-    bit writes_rd, bypass_ready;
-
-    // Wire that connects to flop
-    branch_pred_pkg::update_t pred_update_out_d;
-    
-
     // ==========================================================
     // ALU + Control Logic
     // Pure combinational logic
@@ -183,15 +171,14 @@
 
         source_data  = 32'b0;
 
-        // Propagate incoming status
-        status_forwards_next = status_forwards_in;
-
 `ifdef M_EXT
         m_start = 1'b0;
         m_stall = 1'b0;
-`endif
+`endif  
+        
+        // Propagate incoming status
+        status_forwards_next = status_forwards_in;
         local_backwards_status = pipeline_status::READY;
-
 
         // ------------------------------------------------------
         // Instruction execution
@@ -353,7 +340,7 @@
         // Local backwards control
         // ------------------------------------------------------
 
-        if(branch_pred_in.valid) begin
+        if (branch_pred_in.valid) begin
 
             unique case ({branch_pred_in.taken, branch_taken})
                 2'b00: begin
@@ -362,16 +349,18 @@
                     local_backwards_status = pipeline_status::READY;
                 end
                 2'b01: begin
-                    /* Incorrectly predicted | Not taken */
+                    /* Incorrectly predicted | Actually Taken (BTB Miss) */
                     // Pipeline Flush
-                    local_backwards_status = pipeline_status::JUMP;                    
+                    local_backwards_status = pipeline_status::JUMP;
+                    // jump_address = program_counter_in + instruction_in.immediate;
+                    // next_pc      = jump_address;
                 end
                 2'b10: begin
-                    /* Incorrectly predicted | Taken */
+                    /* Incorrectly predicted | Actually Not Taken */
                     // Pipeline Flush
                     local_backwards_status = pipeline_status::JUMP;
                     jump_address = program_counter_in + 4;
-                    next_pc = jump_address;
+                    next_pc      = jump_address;
                 end
                 2'b11: begin
                     /* Correctly predicted | Taken */
@@ -382,8 +371,9 @@
                 default:;
             endcase
 
-        end else local_backwards_status = pipeline_status::READY;   
-
+        end else begin
+            local_backwards_status = pipeline_status::READY;
+        end
     end
 
 
