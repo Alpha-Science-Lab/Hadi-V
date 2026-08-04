@@ -37,17 +37,6 @@ package clk_params;
     // => SYS_CLK: (100 MHz / 1 * 10) / 20 = 50 MHz (HaDes-V default)
 
     // --------------------------------------------------------------------------------------------
-    // |                                 For TANG NANO 9K Board                                   |
-    // --------------------------------------------------------------------------------------------    
-    
-    localparam real GW_EXT_CLK_FREQ_MHZ   = 27; /* External crystal oscilator 27 MHz */
-    localparam int  GW_PLL_IDIV_SEL       = 2;  /* Conform to /synth/gowin_rpll.v*/
-    localparam int  GW_PLL_FDIV_SEL       = 0;  /* Conform to /synth/gowin_rpll.v*/
-    localparam int  GW_PLL_ODIV_SEL       = 48; /* Conform to /synth/gowin_rpll.v*/
-    localparam real GW_SYS_CLK_FREQ_MHZ   = (GW_EXT_CLK_FREQ_MHZ * (GW_PLL_FDIV_SEL + 1)) / (GW_PLL_IDIV_SEL + 1);
-    localparam real GW_SYS_CLK_PERIOD_NS  = 1000.000 / GW_SYS_CLK_FREQ_MHZ;
-
-    // --------------------------------------------------------------------------------------------
     // |                                        VGA Clock                                         |
     // --------------------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-/* running_led.c
+/* File: running_led.c
  * Running LED example for Hadi-V
  */
 
@@ -20,10 +20,10 @@ int main(void)
         // All LEDs off (1), then turn one LED on (0)
         *LEDS_ADDRESS = (uint16_t)~(1u << led);
 
-        delay(2000000);
+        delay(200000);
 
         led++;
-        if (led >= 16) {
+        if (led >= 6) {
             led = 0;
         }
     }

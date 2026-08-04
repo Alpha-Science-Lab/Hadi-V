@@ -7,73 +7,67 @@
 # Organization: Alpha Science Lab
 
 ifneq ($(words $(CURDIR)),1)
- $(error Unsupported: GNU Make cannot build in directories containing spaces, build elsewhere: '$(CURDIR)')
+	$(error Unsupported: GNU Make cannot build in directories containing spaces, build elsewhere: '$(CURDIR)')
 endif
 
 # Binaries
-VERILATOR ?= verilator
-PYTHON    ?= python3
+VERILATOR         ?= verilator
+PYTHON            ?= python3
 
-# CC = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
-CC = riscv32-unknown-elf-gcc
-# OBJCOPY = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
-OBJCOPY = riscv32-unknown-elf-objcopy
-# OBJDUMP = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
-OBJDUMP = riscv32-unknown-elf-objdump
+# CC              = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
+CC                = riscv32-unknown-elf-gcc
+# OBJCOPY         = /opt/riscv32i/bin/riscv32-unknown-elf-objcopy
+OBJCOPY           = riscv32-unknown-elf-objcopy
+# OBJDUMP         = /opt/riscv32i/bin/riscv32-unknown-elf-objdump
+OBJDUMP           = riscv32-unknown-elf-objdump
 
-# XILINX_VIVADO ?= /opt/Xilinx/Vivado/2023.2/
-XILINX_VIVADO ?= /tools/Xilinx/Vivado/2024.2/
-# XILINX_VIVADO ?= /tools/Xilinx/2025.1/Vivado/
-VIVADO ?= $(XILINX_VIVADO)/bin/vivado
+# XILINX_VIVADO   ?= /opt/Xilinx/Vivado/2023.2/
+XILINX_VIVADO     ?= /tools/Xilinx/Vivado/2024.2/
+# XILINX_VIVADO   ?= /tools/Xilinx/2025.1/Vivado/
+VIVADO 			  ?= $(XILINX_VIVADO)/bin/vivado
 
-GOWIN_SH    ?= LD_LIBRARY_PATH=/tools/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= \
-			   gw_sh
+GOWIN_SH    	  ?= LD_LIBRARY_PATH=/tools/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= gw_sh
+GOWIN_PLL   	  = gowin_pll
 
-GOWIN_PLL   = gowin_pll
+M_EXT             ?= 0
 
-# Directories
-SIM_DIR = sim
-BUILD_DIR = build
-RTL_DIR = rtl
-REF_DIR = ref
-LIB_DIR = lib
-SAVES_DIR = saves
-STD_LIB_DIR = std
-SYNTH_DIR = synth
-DEFINES_DIR = defines
+# ISA configuration
+ifeq ($(M_EXT),1)
+	RISCV_ARCH    = -march=rv32im_zicsr_zifencei -mabi=ilp32
+else
+	RISCV_ARCH    = -march=rv32i_zicsr_zifencei -mabi=ilp32
+endif
 
-APP_DIR = app
-TEST_DIR = test
-ASM_DIR = $(TEST_DIR)/asm
-C_DIR = $(TEST_DIR)/c
-SV_DIR = $(TEST_DIR)/sv
+# Verilator Flags
+VERILATOR_FLAGS   =
+VERILATOR_FLAGS   += -cc
+VERILATOR_FLAGS   += -Wall -Wno-fatal
+ifeq ($(M_EXT),1) 
+VERILATOR_FLAGS   += -DM_EXT
+endif
+VERILATOR_FLAGS   += $(abspath $(wildcard $(REF_DIR)/*.so)) -j
+VERILATOR_FLAGS   += -f $(SIM_DIR)/files.txt
+
+DEFINES_DIR       = defines
+REF_DIR           = ref
+STD_LIB_DIR       = std
+# LIB_DIR         = lib
+RTL_DIR           = rtl
+BUILD_DIR         = build
+SIM_DIR           = sim
+SAVES_DIR         = saves
+SYNTH_DIR         = synth
+
+TEST_DIR          = test
+ASM_DIR           = $(TEST_DIR)/asm
+C_DIR             = $(TEST_DIR)/c
+SV_DIR            = $(TEST_DIR)/sv
 
 TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
 GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
 SYS_CLK_FREQ      ?= 9
 GOWIN_TCL_SCRIPT  = $(SYNTH_DIR)/tang9k_synth.tcl
-
-################################################################################
-#                            ISA / Feature Selection                           #
-################################################################################
-M_EXT ?= 0
-
-# ISA configuration
-ifeq ($(M_EXT),1)
-RISCV_ARCH = -march=rv32im_zicsr_zifencei -mabi=ilp32
-else
-RISCV_ARCH = -march=rv32i_zicsr_zifencei -mabi=ilp32
-endif
-
-# Verilator Flags
-VERILATOR_FLAGS =
-VERILATOR_FLAGS += -cc
-VERILATOR_FLAGS += -Wall -Wno-fatal
-ifeq ($(M_EXT),1) 
-	VERILATOR_FLAGS += -DM_EXT
-endif
-VERILATOR_FLAGS += $(abspath $(wildcard $(REF_DIR)/*.so)) -j
-VERILATOR_FLAGS += -f $(SIM_DIR)/files.txt
+BOOTLOADER        ?= bootloader
 
 ################################################################################
 #                                  Print Help                                  #
@@ -128,8 +122,8 @@ synthesis_gw:$(TANG9K_BITSTREAM)
 flash_tang9k: $(TANG9K_BITSTREAM)
 	openFPGALoader -b tangnano9k -f $(TANG9K_BITSTREAM)
 
-$(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
-	@ $(PYTHON) split_mem.py $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
+$(TANG9K_BITSTREAM): $(BUILD_DIR)/$(C_DIR)/$(BOOTLOADER)/init.mem $(GOWIN_PLL_WRAPPER) $(SYNTH_DIR)/tang9k.cst $(SYNTH_DIR)/tang9k.sdc $(GOWIN_TCL_SCRIPT)
+	@ $(PYTHON) split_mem.py $(BUILD_DIR)/$(C_DIR)/$(BOOTLOADER)/init.mem
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/tang9k
 	cd $(BUILD_DIR)/$(SYNTH_DIR)/tang9k && $(GOWIN_SH) $(CURDIR)/$(GOWIN_TCL_SCRIPT)
 
@@ -232,49 +226,6 @@ $(BUILD_DIR)/$(C_DIR)/%/out.dis: $(BUILD_DIR)/$(C_DIR)/%/out.elf
 $(C_TEST_NAMES): $(C_DIR)/%: $(BUILD_DIR)/$(C_DIR)/%/init.mem $(BUILD_DIR)/$(C_DIR)/%/out.hex $(BUILD_DIR)/$(C_DIR)/%/out.elf $(BUILD_DIR)/$(C_DIR)/%/out.dis $(BUILD_DIR)/$(SIM_DIR)/top
 	cd $(BUILD_DIR)/$(C_DIR)/$* && $(CURDIR)/$(BUILD_DIR)/$(SIM_DIR)/top
 	@echo 'gtkwave $(BUILD_DIR)/$(C_DIR)/$*/sim.fst $(SAVES_DIR)/pipeline.gtkw' > $(BUILD_DIR)/show.sh
-
-
-################################################################################
-#                                C Applications                               #
-################################################################################
-
-# Collect C applications
-C_APPS = $(wildcard $(APP_DIR)/*.c)
-C_APP_NAMES = $(patsubst $(APP_DIR)/%.c, $(APP_DIR)/%, $(C_APPS))
-
-# Compile application
-$(BUILD_DIR)/$(APP_DIR)/%/out.o: $(APP_DIR)/%.c
-	@ mkdir -p $(BUILD_DIR)/$(APP_DIR)/$*
-	$(CC) $(RISCV_ARCH) -fdata-sections -ffunction-sections \
-		-c -o $@ -I $(STD_LIB_DIR)/include $<
-
-# Link application
-$(BUILD_DIR)/$(APP_DIR)/%/out.elf: $(BUILD_DIR)/$(APP_DIR)/%/out.o \
-	$(C_LIB_OBJ) \
-	$(STD_LIB_DIR)/hades-v.ld
-	$(CC) $(RISCV_ARCH) -o $@ \
-		-nostdlib -nostartfiles \
-		-T $(STD_LIB_DIR)/hades-v.ld \
-		$< $(C_LIB_OBJ) -lgcc \
-		-Wl,--no-warn-rwx-segments \
-		-Wl,--gc-sections
-
-# Create hex file
-$(BUILD_DIR)/$(APP_DIR)/%/out.hex: $(BUILD_DIR)/$(APP_DIR)/%/out.elf
-	$(OBJCOPY) -O ihex $< $@
-
-
-# Create disassembly
-$(BUILD_DIR)/$(APP_DIR)/%/out.dis: $(BUILD_DIR)/$(APP_DIR)/%/out.elf
-	$(OBJDUMP) -d -x $< > $@
-
-# Build application
-.PHONY: $(C_APP_NAMES)
-$(C_APP_NAMES): $(APP_DIR)/%: $(BUILD_DIR)/$(APP_DIR)/%/out.hex $(BUILD_DIR)/$(APP_DIR)/%/out.elf \
-	$(BUILD_DIR)/$(APP_DIR)/%/out.dis
-	@echo "Built application: $*"
-	@echo "HEX: $(BUILD_DIR)/$(APP_DIR)/$*/out.hex"
-
 
 ################################################################################
 #                             SystemVerilog Tests                              #

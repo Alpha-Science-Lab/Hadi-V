@@ -29,8 +29,6 @@ module tang9k_top(
     // --------------------------------------------------------------------------------------------
     // |                                     Clock Generation                                     |
     // --------------------------------------------------------------------------------------------
-    import clk_params::*;
-
 
     pll pll_inst(
         .clock_in(clk_27mhz), // clkin
@@ -43,7 +41,7 @@ module tang9k_top(
     // --------------------------------------------------------------------------------------------
 
     tang9k_mcu #(
-        .CLK_FREQUENCY_MHZ(GW_SYS_CLK_FREQ_MHZ),
+        .CLK_FREQUENCY_MHZ(9.0), /* Conform to /synth/gowin_rpll.v*/
         .UART_BAUD_RATE(115200)
     ) mcu (
         .clk(pll_clk_o),
