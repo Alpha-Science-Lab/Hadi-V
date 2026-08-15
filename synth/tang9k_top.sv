@@ -12,10 +12,13 @@ module tang9k_top(
     input logic clk_27mhz,
 
     // LEDs
-    output logic [5:0] leds, /* Tang nano 9K only has 6 onboard LEDs*/
+    output logic [5:0] leds, /* Tang nano 9K onboard LEDs */
+
+    // External Traffic Light Module Pins (Pin 25, 26, 27)
+    output logic [2:0] gpio_traffic,
 
     // Buttons
-    input  logic [1:0] buttons_async, /* Tang nano 9K only has 2 onboard push button*/
+    input  logic [1:0] buttons_async, /* Tang nano 9K onboard push buttons */
 
     // UART
     input  logic uart_rx_async,
@@ -54,6 +57,9 @@ module tang9k_top(
 
 
     assign leds             = mcu_leds[5:0];
+    assign gpio_traffic[0]  = mcu_leds[8];  // External RED (Active-High)
+    assign gpio_traffic[1]  = mcu_leds[9];  // External YELLOW (Active-High)
+    assign gpio_traffic[2]  = mcu_leds[10]; // External GREEN (Active-High)
     assign mcu_buttons[4:2] = 3'b111;
     assign mcu_buttons[1]   = ~buttons_async[1] || ~pll_locked;
     assign mcu_buttons[0]   = buttons_async[0];

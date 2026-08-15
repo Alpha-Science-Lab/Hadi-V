@@ -26,10 +26,36 @@ XILINX_VIVADO     ?= /tools/Xilinx/Vivado/2024.2/
 # XILINX_VIVADO   ?= /tools/Xilinx/2025.1/Vivado/
 VIVADO 			  ?= $(XILINX_VIVADO)/bin/vivado
 
-GOWIN_SH    	  ?= LD_LIBRARY_PATH=/tools/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= gw_sh
-GOWIN_PLL   	  = gowin_pll
+GOWIN_SH     = LD_LIBRARY_PATH=$(CURDIR)/build/gowin_eda/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= \
+			   $(CURDIR)/build/gowin_eda/IDE/bin/gw_sh
 
-M_EXT             ?= 0
+GOWIN_PLL    = $(CURDIR)/build/oss-cad-suite/bin/gowin_pll
+
+# Directories
+SIM_DIR = sim
+BUILD_DIR = build
+RTL_DIR = rtl
+REF_DIR = ref
+LIB_DIR = lib
+SAVES_DIR = saves
+STD_LIB_DIR = std
+SYNTH_DIR = synth
+DEFINES_DIR = defines
+
+APP_DIR = app
+TEST_DIR = test
+ASM_DIR = $(TEST_DIR)/asm
+C_DIR = $(TEST_DIR)/c
+SV_DIR = $(TEST_DIR)/sv
+
+TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
+GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
+GOWIN_TCL_SCRIPT  = $(SYNTH_DIR)/tang9k_synth.tcl
+
+################################################################################
+#                            ISA / Feature Selection                           #
+################################################################################
+M_EXT ?= 0
 
 # ISA configuration
 ifeq ($(M_EXT),1)
@@ -92,7 +118,7 @@ help:
 
 .PHONY: clean
 clean::
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)/sim $(BUILD_DIR)/std $(BUILD_DIR)/synth $(BUILD_DIR)/test $(BUILD_DIR)/app $(BUILD_DIR)/show.sh
 
 ################################################################################
 #                                   Synthesis                                  #

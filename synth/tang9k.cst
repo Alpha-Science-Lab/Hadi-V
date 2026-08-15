@@ -42,6 +42,21 @@ IO_LOC  "leds[5]" 16;
 IO_PORT "leds[5]" IO_TYPE=LVCMOS18;
 
 #---------------------------------------------------------
+# External Traffic Light Module Pins (Active-High 3.3V)
+# gpio_traffic[0] -> RED    (Pin 25)
+# gpio_traffic[1] -> YELLOW (Pin 26)
+# gpio_traffic[2] -> GREEN  (Pin 27)
+#---------------------------------------------------------
+IO_LOC  "gpio_traffic[0]" 25;
+IO_PORT "gpio_traffic[0]" IO_TYPE=LVCMOS33;
+
+IO_LOC  "gpio_traffic[1]" 26;
+IO_PORT "gpio_traffic[1]" IO_TYPE=LVCMOS33;
+
+IO_LOC  "gpio_traffic[2]" 27;
+IO_PORT "gpio_traffic[2]" IO_TYPE=LVCMOS33;
+
+#---------------------------------------------------------
 # Onboard USB-UART (BL702)
 #---------------------------------------------------------
 IO_LOC  "uart_tx" 17;

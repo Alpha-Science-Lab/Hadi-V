@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "peripherals.h"
 
-#define SYS_CLK_HZ        9000000UL
+#define SYS_CLK_HZ        12000000UL
 #define HALF_SECOND_TICKS (SYS_CLK_HZ / 2)
 
 static uint64_t timer_get(void)
