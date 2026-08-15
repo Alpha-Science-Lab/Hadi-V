@@ -63,6 +63,10 @@ ASM_DIR           = $(TEST_DIR)/asm
 C_DIR             = $(TEST_DIR)/c
 SV_DIR            = $(TEST_DIR)/sv
 
+FIRMWARE          = running_led
+TTYPORT           = /dev/ttyUSB1
+BAUD              = 115200
+
 TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
 GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
 SYS_CLK_FREQ      ?= 9
@@ -226,6 +230,14 @@ $(BUILD_DIR)/$(C_DIR)/%/out.dis: $(BUILD_DIR)/$(C_DIR)/%/out.elf
 $(C_TEST_NAMES): $(C_DIR)/%: $(BUILD_DIR)/$(C_DIR)/%/init.mem $(BUILD_DIR)/$(C_DIR)/%/out.hex $(BUILD_DIR)/$(C_DIR)/%/out.elf $(BUILD_DIR)/$(C_DIR)/%/out.dis $(BUILD_DIR)/$(SIM_DIR)/top
 	cd $(BUILD_DIR)/$(C_DIR)/$* && $(CURDIR)/$(BUILD_DIR)/$(SIM_DIR)/top
 	@echo 'gtkwave $(BUILD_DIR)/$(C_DIR)/$*/sim.fst $(SAVES_DIR)/pipeline.gtkw' > $(BUILD_DIR)/show.sh
+
+################################################################################
+#                           Firmware Update via UART                           #
+################################################################################
+
+.PHONY: fw_upd
+fw_upd: $(BUILD_DIR)/$(C_DIR)/$(FIRMWARE)/out.hex
+	@ $(PYTHON) fw_upd.py $(TTYPORT) $(BAUD) $(BUILD_DIR)/$(C_DIR)/$(FIRMWARE)/out.hex
 
 ################################################################################
 #                             SystemVerilog Tests                              #
