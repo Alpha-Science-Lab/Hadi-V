@@ -11,8 +11,7 @@ module top_cpu(
     // Clock Generation
     // ------------------------------------------------------------------------
 
-    logic clk;
-    logic clk_fb;
+    logic clk, clk_fb;
 
     MMCME2_BASE #(
         .CLKFBOUT_MULT_F(MMCM_MUL),
@@ -28,19 +27,6 @@ module top_cpu(
 
         .CLKFBOUT(clk_fb),
         .CLKFBIN(clk_fb),
-
-        .CLKOUT0B(),
-        .CLKOUT1(),
-        .CLKOUT1B(),
-        .CLKOUT2(),
-        .CLKOUT2B(),
-        .CLKOUT3(),
-        .CLKOUT3B(),
-        .CLKOUT4(),
-        .CLKOUT5(),
-        .CLKOUT6(),
-        .CLKFBOUTB(),
-        .LOCKED(),
 
         .PWRDWN(1'b0),
         .RST(1'b0)

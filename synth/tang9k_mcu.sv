@@ -183,14 +183,4 @@ module tang9k_mcu #(
         .wishbone(mem_bus_slaves[6])
     );
 
-    wishbone_test #(
-        .ADDRESS(TEST_START),
-        .SIZE(TEST_SIZE)
-    ) wb_test (
-        .clk(clk),
-        .rst(rst),
-        .interrupt(test_interrupt),
-        .wishbone(mem_bus_slaves[8])
-    );
-
 endmodule
