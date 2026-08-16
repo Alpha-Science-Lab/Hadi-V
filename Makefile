@@ -67,11 +67,11 @@ TTYPORT           ?= /dev/ttyUSB1
 BAUD              ?= 115200
 FIRMWARE          ?= running_led
 
+TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
 BOOTLOADER        ?= bootloader
 SYS_CLK_FREQ      ?= 9
 GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
 GOWIN_TCL_SCRIPT  = $(SYNTH_DIR)/tang9k_synth.tcl
-TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
 
 
 ################################################################################

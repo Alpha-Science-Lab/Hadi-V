@@ -14,7 +14,7 @@ def flash_hex(port, baudrate, hex_file):
         return False
 
     print("Serial port opened successfully.")
-    time.sleep(0.1)
+    time.sleep(2.0)
 
     try:
         with open(hex_file, 'r') as f:
