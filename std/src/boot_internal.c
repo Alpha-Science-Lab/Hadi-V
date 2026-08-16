@@ -33,11 +33,11 @@ void __transmit_string(char *val) {
 
 int __receive_byte() {
     while (1) {
-        if (! (*UART_RX_STATUS_ADDRESS & (1 << UART_RX_STATUS_IDX_EMPTY))) {
+        if (*UART_RX_STATUS_ADDRESS & (1 << UART_RX_STATUS_IDX_FULL)) {
             return *UART_BUFFER_ADDRESS;
         }
 
-        if (*UART_RX_STATUS_ADDRESS & (1 << UART_RX_STATUS_IDX_ER)) {
+        if (*UART_RX_STATUS_ADDRESS & (1 << UART_TX_STATUS_IDX_ER)) {
             __transmit_string("ERROR: Error while receiving UART byte\n");
             return -1;
         }

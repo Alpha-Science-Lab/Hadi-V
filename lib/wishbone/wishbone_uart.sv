@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: wishbone_uart.sv
- *
- * Updated with 16-Byte TX & RX Hardware FIFOs by Alpha Science Lab
- * August 2026
  */
+
+
 
 module wishbone_uart #(
     parameter bit [31:0] ADDRESS,
@@ -25,55 +24,36 @@ module wishbone_uart #(
     wishbone_interface.slave wishbone
 );
 
-    // --------------------------------------------------------------------------------------
-    // |                                    Registers                                       |
-    // --------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // |                                        Registers                                         |
+    // --------------------------------------------------------------------------------------------
 
     /*
     <--------- TX STATUS ---------> <-------- RX STATUS ---------> <----------> <- BUFFER ->
     |           31...24           |||          23...16           |||  15...8  |||  7...0   |
-    | 31-28| 27 |  26   |  25 | 24||| 23-19| 19 |  18   |  17 | 16||| 15-----8 ||| 7------0 |
-    | xxxxx|TX_F|TX_EMPT|TX_IE|ERR||| xxxxx|RX_E|RX_FULL|RX_IE|ERR||| xxxxxxxx |||  BUFFER  |
+    | 31-27|   26   |  25 |  24   ||| 23-19|   18  |  17 |  16   ||| 15-----8 ||| 7------0 |
+    | xxxxx|TX_EMPTY|TX_IE|TX_ERR ||| xxxxx|RX_FULL|RX_IE|RX_ERR ||| xxxxxxxx |||  BUFFER  |
     */
 
-    localparam TX_FULL_IDX  = 27;
+    /*verilator lint_off UNUSED*/
     localparam TX_EMPTY_IDX = 26;
     localparam TX_IE_IDX    = 25;
     localparam TX_ERR_IDX   = 24;
-
-    localparam RX_EMPTY_IDX = 19;
     localparam RX_FULL_IDX  = 18;
     localparam RX_IE_IDX    = 17;
     localparam RX_ERR_IDX   = 16;
     localparam BUFFER_IDX   =  0;
+    /*verilator lint_on UNUSED*/
 
-    logic tx_err_reg;
-    logic tx_intr_enable_reg;
+    logic [7:0] tx_buffer_reg;
+    logic       tx_err_reg;
+    logic       tx_intr_enable_reg;
+    logic       tx_buffer_empty;
 
-    logic rx_err_reg;
-    logic rx_intr_enable_reg;
-
-    // --------------------------------------------------------------------------------------------
-    // |                                    16-Byte Hardware FIFOs                                |
-    // --------------------------------------------------------------------------------------------
-
-    // TX FIFO
-    logic [7:0] tx_fifo [15:0];
-    logic [3:0] tx_wptr, tx_rptr;
-    logic [4:0] tx_count;
-
-    logic tx_fifo_full, tx_fifo_empty;
-    assign tx_fifo_full  = (tx_count == 5'd16);
-    assign tx_fifo_empty = (tx_count == 5'd0);
-
-    // RX FIFO
-    logic [7:0] rx_fifo [15:0];
-    logic [3:0] rx_wptr, rx_rptr;
-    logic [4:0] rx_count;
-
-    logic rx_fifo_full, rx_fifo_empty;
-    assign rx_fifo_full  = (rx_count == 5'd16);
-    assign rx_fifo_empty = (rx_count == 5'd0);
+    logic [7:0] rx_buffer_reg;
+    logic       rx_err_reg;
+    logic       rx_intr_enable_reg;
+    logic       rx_buffer_full;
 
     // --------------------------------------------------------------------------------------------
     // |                                        Interrupt                                         |
@@ -95,17 +75,18 @@ module wishbone_uart #(
         end
     end
 
-    assign interrupt = ((!rx_fifo_empty && rx_intr_enable_sig) ||
-                        (tx_fifo_empty && tx_intr_enable_sig));
+    assign interrupt = ((rx_buffer_full  && rx_intr_enable_sig) ||
+                        (tx_buffer_empty && tx_intr_enable_sig) );
 
     // --------------------------------------------------------------------------------------------
     // |                                     UART Transmitter                                     |
     // --------------------------------------------------------------------------------------------
 
-    logic       tx_start;
-    logic [7:0] tx_byte_to_send;
-    logic       tx_done;
-    logic       tx_active;
+    logic tx_start;
+    /*verilator lint_off UNUSED*/
+    logic tx_done;
+    /*verilator lint_on UNUSED*/
+    logic tx_active;
 
     uart_tx #(
         .CLKS_PER_BIT(int'(CLK_FREQUENCY_MHZ*1_000_000.0/BAUD_RATE))
@@ -113,58 +94,140 @@ module wishbone_uart #(
         .clk(clk),
         .rst(rst),
         .tx_start_in(tx_start),
-        .tx_byte_in(tx_byte_to_send),
+        .tx_byte_in(tx_buffer_reg),
         .tx_serial_out(tx_serial_out),
         .tx_done_out(tx_done),
         .tx_active_out(tx_active)
     );
 
-    // TX FIFO Control & Transmitter Trigger
+    // --------------------------------------------------------------------------------------------
+    // TX - State Machine
+    enum {
+        TX_INIT,
+        TX_BUFFER_EMPTY_IDLE,
+        TX_BUFFER_FULL_START,
+        TX_BUFFER_EMPTY_ACTIVE,
+        TX_BUFFER_FULL_ACTIVE
+    } tx_state;
+
     always_ff @(posedge clk) begin
         if (rst) begin
-            tx_wptr     <= 4'd0;
-            tx_rptr     <= 4'd0;
-            tx_count    <= 5'd0;
-            tx_start    <= 1'b0;
-            tx_err_reg  <= 1'b0;
-            tx_byte_to_send <= 8'd0;
-        end else begin
-            tx_start <= 1'b0;
-
-            // Push to TX FIFO on Wishbone write
-            if (wb_write_tx_buffer) begin
-                if (!tx_fifo_full) begin
-                    tx_fifo[tx_wptr] <= wb_dat_mosi[7:0];
-                    tx_wptr  <= tx_wptr + 4'd1;
-                    tx_count <= tx_count + 5'd1;
-                end else begin
-                    tx_err_reg <= 1'b1; // Overrun Error
+            tx_state <= TX_INIT;
+        end
+        else begin
+            case(tx_state)
+                TX_INIT: begin
+                    tx_state <= TX_BUFFER_EMPTY_IDLE;
                 end
+                TX_BUFFER_EMPTY_IDLE: begin
+                    if (wb_write_tx_buffer && tx_active) begin tx_state <= TX_BUFFER_EMPTY_ACTIVE; end // should not happen (tx started without start signal)
+                    else if (wb_write_tx_buffer)         begin tx_state <= TX_BUFFER_FULL_START; end
+                    else if (tx_active)                  begin tx_state <= TX_BUFFER_EMPTY_IDLE; end // should not happen (tx started without start signal)
+                end
+                TX_BUFFER_FULL_START: begin
+                    if (wb_write_tx_buffer && tx_active) begin tx_state <= TX_BUFFER_FULL_ACTIVE; end
+                    else if (wb_write_tx_buffer)         begin tx_state <= TX_BUFFER_FULL_START; end // signal error
+                    else if (tx_active)                  begin tx_state <= TX_BUFFER_EMPTY_ACTIVE; end
+                end
+                TX_BUFFER_EMPTY_ACTIVE: begin
+                    if (wb_write_tx_buffer && tx_active == 0) begin tx_state <= TX_BUFFER_FULL_START; end
+                    else if (wb_write_tx_buffer)              begin tx_state <= TX_BUFFER_FULL_ACTIVE; end
+                    else if (tx_active == 0)                  begin tx_state <= TX_BUFFER_EMPTY_IDLE; end
+                end
+                TX_BUFFER_FULL_ACTIVE: begin
+                    if (wb_write_tx_buffer && tx_active == 0) begin tx_state <= TX_BUFFER_FULL_START; end // signal error
+                    else if (wb_write_tx_buffer)              begin tx_state <= TX_BUFFER_FULL_ACTIVE; end // signal error
+                    else if (tx_active == 0)                  begin tx_state <= TX_BUFFER_FULL_START; end
+                end
+                default: begin
+                    tx_state <= TX_INIT;
+                end
+            endcase
+        end
+    end
+    // --------------------------------------------------------------------------------------------
+    // TX - Start signal
+    assign tx_start = (tx_state == TX_BUFFER_FULL_START) ? 1 : 0;
+    // --------------------------------------------------------------------------------------------
+    // TX - Buffer Register
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            tx_buffer_reg <= 0;
+        end
+        else begin
+            case(tx_state)
+                TX_INIT: begin
+                    tx_buffer_reg <= 0;
+                end
+                TX_BUFFER_EMPTY_IDLE: begin
+                    if (wb_write_tx_buffer && tx_active) begin tx_buffer_reg <= 0; end // should not happen (tx started without start signal)
+                    else if (wb_write_tx_buffer)         begin tx_buffer_reg <= wb_dat_mosi[7:0]; end
+                    else if (tx_active)                  begin tx_buffer_reg <= 0; end // should not happen (tx started without start signal)
+                end
+                TX_BUFFER_FULL_START: begin
+                    if (wb_write_tx_buffer && tx_active) begin tx_buffer_reg <= wb_dat_mosi[7:0]; end
+                    else if (wb_write_tx_buffer)         begin tx_buffer_reg <= wb_dat_mosi[7:0]; end // signal error
+                    else if (tx_active)                  begin tx_buffer_reg <= 0; end
+                end
+                TX_BUFFER_EMPTY_ACTIVE: begin
+                    if (wb_write_tx_buffer && tx_active == 0) begin tx_buffer_reg <= wb_dat_mosi[7:0]; end
+                    else if (wb_write_tx_buffer)              begin tx_buffer_reg <= wb_dat_mosi[7:0]; end
+                    else if (tx_active == 0)                  begin tx_buffer_reg <= tx_buffer_reg; end
+                end
+                TX_BUFFER_FULL_ACTIVE: begin
+                    if (wb_write_tx_buffer && tx_active == 0) begin tx_buffer_reg <= wb_dat_mosi[7:0]; end // signal error
+                    else if (wb_write_tx_buffer)              begin tx_buffer_reg <= wb_dat_mosi[7:0]; end // signal error
+                    else if (tx_active == 0)                  begin tx_buffer_reg <= tx_buffer_reg; end
+                end
+                default: begin
+                    tx_buffer_reg <= 0;
+                end
+            endcase
+        end
+    end
+    // --------------------------------------------------------------------------------------------
+    // TX - Buffer empty
+    always_comb begin
+        case(tx_state)
+            TX_INIT:                begin tx_buffer_empty = 1'b1; end
+            TX_BUFFER_EMPTY_IDLE:   begin tx_buffer_empty = 1'b1; end
+            TX_BUFFER_FULL_START:   begin tx_buffer_empty = 1'b0; end
+            TX_BUFFER_EMPTY_ACTIVE: begin tx_buffer_empty = 1'b1; end
+            TX_BUFFER_FULL_ACTIVE:  begin tx_buffer_empty = 1'b0; end
+            default:                begin tx_buffer_empty = 1'b1; end
+        endcase
+    end
+    // --------------------------------------------------------------------------------------------
+    // TX - Error
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            tx_err_reg <= 0;
+        end
+        else begin
+            if (tx_state == TX_BUFFER_FULL_START && (wb_write_tx_buffer)) begin
+                tx_err_reg <= 1;
             end
-
-            // Pop from TX FIFO and start transmitter when idle
-            if (!tx_active && !tx_start && (tx_count > 0)) begin
-                tx_byte_to_send <= tx_fifo[tx_rptr];
-                tx_rptr  <= tx_rptr + 4'd1;
-                tx_count <= tx_count - 5'd1;
-                tx_start <= 1'b1;
+            else if (tx_state == TX_BUFFER_FULL_ACTIVE && (wb_write_tx_buffer)) begin
+                tx_err_reg <= 1;
             end
-
-            // Clear error on status write or read
-            if (wb_write_tx_status) begin
+            else if (wb_write_tx_status) begin
                 tx_err_reg <= wb_dat_mosi[TX_ERR_IDX];
-            end else if (wb_read_tx_status) begin
-                tx_err_reg <= 1'b0;
+            end
+            else if (wb_read_tx_status) begin // clear on read
+                tx_err_reg <= 0;
             end
         end
     end
-
-    // TX Interrupt Enable Register
+    // --------------------------------------------------------------------------------------------
+    // TX - Interrupt enable
     always_ff @(posedge clk) begin
         if (rst) begin
-            tx_intr_enable_reg <= 1'b0;
-        end else if (wb_write_tx_status) begin
-            tx_intr_enable_reg <= wb_dat_mosi[TX_IE_IDX];
+            tx_intr_enable_reg <= 0;
+        end
+        else begin
+            if (wb_write_tx_status) begin
+                tx_intr_enable_reg <= wb_dat_mosi[TX_IE_IDX];
+            end
         end
     end
 
@@ -172,9 +235,11 @@ module wishbone_uart #(
     // |                                      UART Receiver                                       |
     // --------------------------------------------------------------------------------------------
 
-    logic [7:0] rx_received_byte;
+    logic [7:0] rx_recieved_byte_sig;
     logic       rx_done;
-    logic       rx_receiver_err;
+    /*verilator lint_off UNUSED*/
+    logic       rx_receiver_err_sig;
+    /*verilator lint_on UNUSED*/
 
     uart_rx #(
         .CLKS_PER_BIT(int'(CLK_FREQUENCY_MHZ*1_000_000.0/BAUD_RATE))
@@ -182,51 +247,117 @@ module wishbone_uart #(
         .clk(clk),
         .rst(rst),
         .rx_serial_in(rx_serial_in),
-        .rx_byte_out(rx_received_byte),
+        .rx_byte_out(rx_recieved_byte_sig),
         .rx_done_out(rx_done),
-        .rx_error_out(rx_receiver_err)
+        .rx_error_out(rx_receiver_err_sig)
     );
 
-    // RX FIFO Control & Pop on Wishbone Read
+    // --------------------------------------------------------------------------------------------
+    // RX - State Machine
+    enum {
+        RX_INIT,
+        RX_BUFFER_EMPTY,
+        RX_BUFFER_FULL
+    } rx_state;
+
     always_ff @(posedge clk) begin
         if (rst) begin
-            rx_wptr    <= 4'd0;
-            rx_rptr    <= 4'd0;
-            rx_count   <= 5'd0;
-            rx_err_reg <= 1'b0;
-        end else begin
-            // Push incoming byte to RX FIFO
-            if (rx_done) begin
-                if (!rx_fifo_full) begin
-                    rx_fifo[rx_wptr] <= rx_received_byte;
-                    rx_wptr  <= rx_wptr + 4'd1;
-                    rx_count <= rx_count + 5'd1;
-                end else begin
-                    rx_err_reg <= 1'b1; // RX FIFO Overrun Error
+            rx_state <= RX_INIT;
+        end
+        else begin
+            case(rx_state)
+                RX_INIT: begin
+                    rx_state <= RX_BUFFER_EMPTY;
                 end
-            end
-
-            // Pop byte from RX FIFO on Wishbone read
-            if (wb_read_rx_buffer && !rx_fifo_empty) begin
-                rx_rptr  <= rx_rptr + 4'd1;
-                rx_count <= rx_count - 5'd1;
-            end
-
-            // Clear error on status write or read
-            if (wb_write_rx_status) begin
-                rx_err_reg <= wb_dat_mosi[RX_ERR_IDX];
-            end else if (wb_read_rx_status) begin
-                rx_err_reg <= 1'b0;
-            end
+                RX_BUFFER_EMPTY: begin
+                    if (wb_read_rx_buffer && rx_done == 1) begin rx_state <= RX_BUFFER_EMPTY; end // set rx_buffer_sig and clear buffer reg
+                    else if (wb_read_rx_buffer)            begin rx_state <= RX_BUFFER_EMPTY; end
+                    else if (rx_done == 1)                 begin rx_state <= RX_BUFFER_FULL; end
+                end
+                RX_BUFFER_FULL: begin
+                    if (wb_read_rx_buffer && rx_done == 1) begin rx_state <= RX_BUFFER_FULL; end // set rx_buffer_reg to new value and return old one
+                    else if (wb_read_rx_buffer)            begin rx_state <= RX_BUFFER_EMPTY; end
+                    else if (rx_done == 1)                 begin rx_state <= RX_BUFFER_FULL; end // signal error
+                end
+                default: begin
+                    rx_state <= RX_INIT;
+                end
+            endcase
+        end
+    end
+    // --------------------------------------------------------------------------------------------
+    // RX - Buffer Register
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            rx_buffer_reg <= 0;
+        end
+        else begin
+            case(rx_state)
+                RX_INIT: begin
+                    rx_buffer_reg <= 0;
+                end
+                RX_BUFFER_EMPTY: begin
+                    if (wb_read_rx_buffer && rx_done == 1) begin rx_buffer_reg <= 0; end // set rx_buffer_sig and clear buffer reg
+                    else if (wb_read_rx_buffer)            begin rx_buffer_reg <= 0; end
+                    else if (rx_done == 1)                 begin rx_buffer_reg <= rx_recieved_byte_sig; end
+                end
+                RX_BUFFER_FULL: begin
+                    if (wb_read_rx_buffer && rx_done == 1) begin rx_buffer_reg <= rx_recieved_byte_sig; end // set rx_buffer_reg to new value and return old one
+                    else if (wb_read_rx_buffer)            begin rx_buffer_reg <= 0; end
+                    else if (rx_done == 1)                 begin rx_buffer_reg <= rx_recieved_byte_sig; end // signal error
+                end
+                default: begin
+                    rx_buffer_reg <= 0;
+                end
+            endcase
         end
     end
 
-    // RX Interrupt Enable Register
+    logic [7:0] rx_buffer_sig;
+    always_comb begin
+        rx_buffer_sig = rx_buffer_reg;
+        if (rx_state == RX_BUFFER_EMPTY && (wb_read_rx_buffer && rx_done == 1)) begin
+            rx_buffer_sig = rx_recieved_byte_sig;
+        end
+    end
+    // --------------------------------------------------------------------------------------------
+    // RX - Buffer full
+    always_comb begin
+        case(rx_state)
+            RX_INIT:         begin rx_buffer_full = 0; end
+            RX_BUFFER_EMPTY: begin rx_buffer_full = (wb_read_rx_buffer && rx_done == 1) ? 1 : 0; end
+            RX_BUFFER_FULL:  begin rx_buffer_full = 1; end
+            default:         begin rx_buffer_full = 0; end
+        endcase
+    end
+    // --------------------------------------------------------------------------------------------
+    // RX - Error
     always_ff @(posedge clk) begin
         if (rst) begin
-            rx_intr_enable_reg <= 1'b0;
-        end else if (wb_write_rx_status) begin
-            rx_intr_enable_reg <= wb_dat_mosi[RX_IE_IDX];
+            rx_err_reg <= 0;
+        end
+        else begin
+            if (rx_state == RX_BUFFER_FULL && (wb_read_rx_buffer == 0 && rx_done == 1)) begin
+                rx_err_reg <= 1;
+            end
+            else if (wb_write_rx_status) begin
+                rx_err_reg <= wb_dat_mosi[RX_ERR_IDX];
+            end
+            else if (wb_read_rx_status) begin // clear on read
+                rx_err_reg <= 0;
+            end
+        end
+    end
+    // --------------------------------------------------------------------------------------------
+    // RX - Interrupt enable
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            rx_intr_enable_reg <= 0;
+        end
+        else begin
+            if (wb_write_rx_status) begin
+                rx_intr_enable_reg <= wb_dat_mosi[RX_IE_IDX];
+            end
         end
     end
 
@@ -234,40 +365,47 @@ module wishbone_uart #(
     // |                                         Wishbone                                         |
     // --------------------------------------------------------------------------------------------
 
+    /*verilator lint_off UNUSED*/
     logic [31:0] wb_dat_mosi;
     assign       wb_dat_mosi = wishbone.dat_mosi;
 
     logic  wb_access;
-    assign wb_access = (wishbone.cyc && wishbone.stb && !wishbone.ack && !wishbone.err) &&
-                       (wishbone.adr >= ADDRESS && wishbone.adr < ADDRESS + SIZE);
+    assign wb_access = (wishbone.cyc && wishbone.stb && wishbone.ack == 0 && wishbone.err == 0) && // wb cycle
+                       (wishbone.adr >= ADDRESS && wishbone.adr < ADDRESS + SIZE); // wb address valid
+
+    logic [3:0] wb_write_sel;
+    assign      wb_write_sel = (wb_access && wishbone.we) ? wishbone.sel : 0;
+    /*verilator lint_on UNUSED*/
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            wishbone.ack      <= 1'b0;
-            wishbone.err      <= 1'b0;
-            wishbone.dat_miso <= 32'd0;
-        end else begin
-            wishbone.ack      <= 1'b0;
-            wishbone.err      <= 1'b0;
-            wishbone.dat_miso <= 32'd0;
-
-            if (wishbone.cyc && wishbone.stb && !wishbone.ack && !wishbone.err) begin
+            wishbone.ack      <= 0;
+            wishbone.err      <= 0;
+            wishbone.dat_miso <= 0;
+        end
+        else begin
+            // default output
+            wishbone.ack      <= 0;
+            wishbone.err      <= 0;
+            wishbone.dat_miso <= 0;
+            // wishbone access
+            if (wishbone.cyc && wishbone.stb && wishbone.ack == 0 && wishbone.err == 0) begin
+                // check address space
                 if (wishbone.adr >= ADDRESS && wishbone.adr < ADDRESS + SIZE) begin
-                    wishbone.ack <= 1'b1;
-                    wishbone.err <= 1'b0;
-
-                    if (!wishbone.we) begin
-                        // Wishbone Read
-                        wishbone.dat_miso <= {
-                            4'b0, tx_fifo_full, tx_fifo_empty, tx_intr_enable_reg, tx_err_reg, // Byte 3 (TX Status)
-                            4'b0, rx_fifo_empty, rx_fifo_full, rx_intr_enable_reg, rx_err_reg, // Byte 2 (RX Status)
-                            8'b0,                                                              // Byte 1 (Reserved)
-                            rx_fifo_empty ? 8'd0 : rx_fifo[rx_rptr]                            // Byte 0 (RX Data Buffer)
-                        };
+                    wishbone.ack <= 1;
+                    wishbone.err <= 0;
+                    if (wishbone.we == 0) begin
+                        // read
+                        wishbone.dat_miso <= { 5'b0, tx_buffer_empty, tx_intr_enable_reg, tx_err_reg,
+                                               5'b0, rx_buffer_full,  rx_intr_enable_reg, rx_err_reg,
+                                               8'b0,
+                                               rx_buffer_sig
+                                             };
                     end
-                end else begin
-                    wishbone.ack <= 1'b0;
-                    wishbone.err <= 1'b1;
+                end
+                else begin
+                    wishbone.ack <= 0;
+                    wishbone.err <= 1;
                 end
             end
         end
@@ -275,15 +413,15 @@ module wishbone_uart #(
 
     // Helper signals detecting individual read/write
     logic  wb_read_rx_buffer, wb_write_tx_buffer;
-    assign wb_read_rx_buffer  = wb_access && !wishbone.we && wishbone.sel[0];
-    assign wb_write_tx_buffer = wb_access && wishbone.we  && wishbone.sel[0];
+    assign wb_read_rx_buffer  = wb_access && wishbone.we == 0 && wishbone.sel[0];
+    assign wb_write_tx_buffer = wb_access && wishbone.we == 1 && wishbone.sel[0];
 
     logic  wb_read_rx_status, wb_write_rx_status;
-    assign wb_read_rx_status  = wb_access && !wishbone.we && wishbone.sel[2];
-    assign wb_write_rx_status = wb_access && wishbone.we  && wishbone.sel[2];
+    assign wb_read_rx_status  = wb_access && wishbone.we == 0 && wishbone.sel[2];
+    assign wb_write_rx_status = wb_access && wishbone.we == 1 && wishbone.sel[2];
 
     logic  wb_read_tx_status, wb_write_tx_status;
-    assign wb_read_tx_status  = wb_access && !wishbone.we && wishbone.sel[3];
-    assign wb_write_tx_status = wb_access && wishbone.we  && wishbone.sel[3];
+    assign wb_read_tx_status  = wb_access && wishbone.we == 0 && wishbone.sel[3];
+    assign wb_write_tx_status = wb_access && wishbone.we == 1 && wishbone.sel[3];
 
 endmodule
