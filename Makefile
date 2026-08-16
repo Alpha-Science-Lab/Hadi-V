@@ -63,9 +63,9 @@ ASM_DIR           = $(TEST_DIR)/asm
 C_DIR             = $(TEST_DIR)/c
 SV_DIR            = $(TEST_DIR)/sv
 
-FIRMWARE          = running_led
-TTYPORT           = /dev/ttyUSB1
-BAUD              = 115200
+FIRMWARE          ?= running_led
+TTYPORT           ?= /dev/ttyUSB1
+BAUD              ?= 115200
 
 TANG9K_BITSTREAM  = $(BUILD_DIR)/$(SYNTH_DIR)/tang9k/impl/pnr/hadi_v.fs
 GOWIN_PLL_WRAPPER = $(SYNTH_DIR)/gowin_rpll.v
