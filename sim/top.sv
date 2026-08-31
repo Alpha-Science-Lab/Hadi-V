@@ -85,7 +85,7 @@ module top;
         $dumpvars;
 
         // Run for 10000000 cycles max
-        repeat (10000000) @(negedge clk);
+        repeat (30000000) @(negedge clk);
 
         // Stop simulation
         $display("\033[0;33m"); // color_orange

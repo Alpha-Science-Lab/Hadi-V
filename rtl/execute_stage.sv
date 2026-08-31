@@ -199,13 +199,13 @@
             // --------------------------------------------------
 
             op::JAL: begin
-                alu_result   = program_counter_in + 4;
+                alu_result   = program_counter_in + (instruction_in.is_compressed ? 32'd2 : 32'd4);
                 jump_address = program_counter_in + instruction_in.immediate;
                 next_pc      = jump_address;
             end
 
             op::JALR: begin
-                alu_result   = program_counter_in + 4;
+                alu_result   = program_counter_in + (instruction_in.is_compressed ? 32'd2 : 32'd4);
                 jump_address = (rs1_data_in + instruction_in.immediate) & ~32'b1;
                 next_pc      = jump_address;
             end
@@ -331,7 +331,7 @@
         // ------------------------------------------------------
 
         if ((branch_taken || instruction_in.op inside {op::JAL,op::JALR}) 
-            && jump_address[1:0] != 2'b00) begin
+            && jump_address[0] != 1'b0) begin
                 status_forwards_next = pipeline_status::FETCH_MISALIGNED;
         end
         
@@ -340,39 +340,38 @@
         // Local backwards control
         // ------------------------------------------------------
 
-        if (branch_pred_in.valid) begin
+        begin
+            logic fetch_recognized_cf;
+            logic fetch_taken;
+            logic actual_taken;
+            
+            fetch_recognized_cf = branch_pred_in.valid;
+            fetch_taken = branch_pred_in.valid && branch_pred_in.taken;
+            
+            actual_taken = branch_taken || instruction_in.op inside {op::JAL, op::JALR};
 
-            unique case ({branch_pred_in.taken, branch_taken})
-                2'b00: begin
-                    /* Correctly predicted | Not taken */
-                    // Optimal case
-                    local_backwards_status = pipeline_status::READY;
-                end
-                2'b01: begin
-                    /* Incorrectly predicted | Actually Taken (BTB Miss) */
-                    // Pipeline Flush
-                    local_backwards_status = pipeline_status::JUMP;
-                    // jump_address = program_counter_in + instruction_in.immediate;
-                    // next_pc      = jump_address;
-                end
-                2'b10: begin
-                    /* Incorrectly predicted | Actually Not Taken */
-                    // Pipeline Flush
-                    local_backwards_status = pipeline_status::JUMP;
-                    jump_address = program_counter_in + 4;
-                    next_pc      = jump_address;
-                end
-                2'b11: begin
-                    /* Correctly predicted | Taken */
-                    // No penalty
-                    local_backwards_status = pipeline_status::READY;
-                end
-
-                default:;
-            endcase
-
-        end else begin
-            local_backwards_status = pipeline_status::READY;
+            if (instruction_in.op == op::JALR) begin
+                // JALR target is always rs1 + imm, which fetch stage NEVER correctly predicts
+                // because it doesn't have rs1. It always predicts 'imm' (which is wrong).
+                // So we MUST always flush and jump to the correct target!
+                local_backwards_status = pipeline_status::JUMP;
+                // jump_address is already correctly set to rs1 + imm
+            end 
+            else if (actual_taken && !fetch_taken) begin
+                // Instruction was taken, but fetch didn't take it! (e.g. compressed jump/branch, or BTB not taken)
+                local_backwards_status = pipeline_status::JUMP;
+                // jump_address is already correctly set for JAL, branches
+            end 
+            else if (!actual_taken && fetch_taken) begin
+                // Instruction was NOT taken, but fetch took it! (e.g. BTB mispredict)
+                local_backwards_status = pipeline_status::JUMP;
+                jump_address = program_counter_in + (instruction_in.is_compressed ? 2 : 4);
+                next_pc = jump_address;
+            end 
+            else begin
+                // Correctly predicted (either both taken, or both not taken)
+                local_backwards_status = pipeline_status::READY;
+            end
         end
     end
 
