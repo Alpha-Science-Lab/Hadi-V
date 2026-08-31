@@ -109,7 +109,7 @@ synthesis: $(BUILD_DIR)/$(C_DIR)/bootloader/init.mem
 .PHONY: synthesis_cpu
 synthesis_cpu:
 	@ mkdir -p $(BUILD_DIR)/$(SYNTH_DIR)/cpu
-	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl -tclargs $(M_EXT)
+	cd $(BUILD_DIR)/$(SYNTH_DIR)/cpu && $(VIVADO) -mode $(MODE) -source $(CURDIR)/$(SYNTH_DIR)/synth_cpu.tcl -tclargs $(C_EXT) $(M_EXT)
 
 ################################################################################
 #                                  Tang Nano 9k                                #

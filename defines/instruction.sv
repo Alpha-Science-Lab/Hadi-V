@@ -20,6 +20,7 @@ package instruction;
         csr::t csr;
 
         logic [31:0] immediate;
+        logic is_compressed;
     } t;
 
     localparam instruction::t NOP = '{
@@ -30,7 +31,8 @@ package instruction;
 
         csr: csr::t'(12'b0),
 
-        immediate: 32'b0
+        immediate: 32'b0,
+        is_compressed: 1'b0
     };
 
     // RV32M

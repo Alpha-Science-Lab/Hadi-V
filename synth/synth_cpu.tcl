@@ -3,11 +3,15 @@
 # Get root directory
 set ROOT [file normalize [file dirname [info script]]/..]
 
-# Optional feature flags
+# Optional feature flags passed from Make: <C_EXT> <M_EXT>
+set c_ext 0
 set m_ext 0
 
 if {$argc > 0} {
-    set m_ext [lindex $argv 0]
+    set c_ext [lindex $argv 0]
+}
+if {$argc > 1} {
+    set m_ext [lindex $argv 1]
 }
 
 # -----------------------------------------------------------------------------
@@ -50,7 +54,21 @@ set SOURCES {
 
 if {$m_ext == 1} {
     puts "INFO: Enabling M extension"
-    set_property verilog_define {M_EXT} [current_fileset]
+}
+if {$c_ext == 1} {
+    puts "INFO: Enabling C extension"
+}
+
+# Build define list (set_property verilog_define REPLACES, so combine both)
+set defines {}
+if {$m_ext == 1} {
+    lappend defines M_EXT
+}
+if {$c_ext == 1} {
+    lappend defines C_EXT
+}
+if {[llength $defines] > 0} {
+    set_property verilog_define $defines [current_fileset]
 }
 
 foreach source $SOURCES {
