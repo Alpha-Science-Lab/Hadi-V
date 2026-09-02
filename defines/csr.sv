@@ -3,13 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: csr.sv
+ * Alternate implementation for iverilog compatibility
  */
 
-
-
-/*verilator lint_off UNUSED*/
-
-package csr;
+package csr_pkg;
     typedef enum logic [11:0] {
         MVENDORID      = 12'hF11,
         MARCHID        = 12'hF12,
@@ -122,5 +119,3 @@ package csr;
         MHPMEVENT31    = 12'h33F
     } t;
 endpackage
-
-/*verilator lint_on UNUSED*/

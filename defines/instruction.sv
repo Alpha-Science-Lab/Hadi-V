@@ -3,37 +3,34 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: instruction.sv
+ * Alternate implementation for iverilog compatibility
  */
 
-// `define M_EXT
-
-/*verilator lint_off UNUSED*/
-
 package instruction;
+    import op_pkg::*;
+    import csr_pkg::*;
+
     typedef struct packed {
-        op::t op;
+        op_pkg::t op;
 
         logic [4:0] rd_address;
         logic [4:0] rs1_address;
         logic [4:0] rs2_address;
 
-        csr::t csr;
+        csr_pkg::t csr;
 
         logic [31:0] immediate;
     } t;
 
-    localparam instruction::t NOP = '{
-        op: op::ADDI,
-        rd_address: 5'b0,
-        rs1_address: 5'b0,
-        rs2_address: 5'b0,
-
-        csr: csr::t'(12'b0),
-
-        immediate: 32'b0
+    localparam t NOP = {
+        op_pkg::ADDI,
+        5'b0,
+        5'b0,
+        5'b0,
+        12'b0,
+        32'b0
     };
 
-    // RV32M
 `ifdef M_EXT    
     typedef enum logic [2:0] {
         M_IDLE,
@@ -43,5 +40,3 @@ package instruction;
 `endif
 
 endpackage
-
-/*verilator lint_on UNUSED*/

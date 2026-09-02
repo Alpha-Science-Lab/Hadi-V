@@ -3,16 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: op.sv
- *
- * Extended(RV32M) by Md. Jannatul Nayem
- * Organization: Alpha Science Lab
+ * Alternate implementation for iverilog compatibility
  */
 
-// `define M_EXT
-
-/*verilator lint_off UNUSED*/
-
- package op;
+package op_pkg;
  typedef enum logic [5:0] {
 
     // RV32I
@@ -88,5 +82,3 @@
     ILLEGAL
  } t;
 endpackage
-
-/*verilator lint_on UNUSED*/

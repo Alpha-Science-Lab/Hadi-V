@@ -1,21 +1,8 @@
 /* File: writeback_stage.sv
- * Brought up by Md. Jannatul Nayem
- * Organization: Alpha Science Lab
- * April 2026
- *
- * Writeback Stage of the pipeline
- *
- * Responsibilities:
- *  - Final register writeback
- *  - Generate forwarding data
- *  - Execute CSR instructions
- *  - Detect traps (exceptions / interrupts)
- *  - Generate pipeline control (jumps)
- *  - Signal CSR updates
- *  - Help track performance metrics
+ * Alternate implementation for iverilog compatibility
  */
 
- module writeback_stage (
+module writeback_stage (
 
     input  logic clk,
     input  logic rst,
@@ -38,81 +25,60 @@
     output pipeline_status::backwards_t status_backwards_out,
     output logic [31:0] jump_address_backwards_out
 );
+    import op_pkg::*;
+    import csr_pkg::*;
 
-    // Pipeline status pipeline_forwards_valid
     logic pipeline_forwards_valid;
 
-    // CSR interface
     logic csr_instruction;
     logic [31:0] csr_read_data, csr_write_data;
-    csr::t csr_addr;
+    csr_pkg::t csr_addr;
 
-    // CSR copies
     logic [31:0] mtvec, mepc, mstatus, mie, mip, mscratch;
     logic [31:0] mstatus_next, mie_next;
 
-    // Trap signals
     logic trap_taken;
     logic [31:0] trap_cause;
     logic [31:0] trap_pc;
     logic mret;
 
-    // Exceptions
     logic exception_taken;
     logic [31:0] exception_cause;
 
-    // Interrupts
-    logic mie_global, meie, mtie, meip, mtip;
+    logic mie_global, meie_eff, mtie_eff, meip, mtip;
     logic ext_irq, tim_irq;
 
-    // Writeback
     logic [31:0] wb_data;
     
     bit writes_rd;
 
-    // ============================================================
-    // BASIC VALIDITY
-    // ============================================================
-
     assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
 
-    // ============================================================
-    // CSR INTERFACE
-    // ============================================================
-
-    assign csr_instruction = instruction_in.op inside {
-            op::CSRRW, op::CSRRS, op::CSRRC,
-            op::CSRRWI, op::CSRRSI, op::CSRRCI
-        };
+    assign csr_instruction = (
+        (instruction_in.op == op_pkg::CSRRW) || (instruction_in.op == op_pkg::CSRRS) || (instruction_in.op == op_pkg::CSRRC) ||
+        (instruction_in.op == op_pkg::CSRRWI) || (instruction_in.op == op_pkg::CSRRSI) || (instruction_in.op == op_pkg::CSRRCI)
+    );
 
     assign csr_addr = instruction_in.csr;
 
-    assign mret = (instruction_in.op == op::MRET);
-
-    // ============================================================
-    // CSR WRITE LOGIC
-    // ============================================================
+    assign mret = (instruction_in.op == op_pkg::MRET);
 
     always_comb begin
         csr_write_data = source_data_in;
 
-        unique case (instruction_in.op)
-            op::CSRRW, op::CSRRWI:
+        case (instruction_in.op)
+            op_pkg::CSRRW, op_pkg::CSRRWI:
                 csr_write_data = source_data_in;
 
-            op::CSRRS, op::CSRRSI:
+            op_pkg::CSRRS, op_pkg::CSRRSI:
                 csr_write_data = csr_read_data | source_data_in;
 
-            op::CSRRC, op::CSRRCI:
+            op_pkg::CSRRC, op_pkg::CSRRCI:
                 csr_write_data = csr_read_data & ~source_data_in;
 
             default: ;
         endcase
     end
-
-    // ============================================================
-    // CSR FILE
-    // ============================================================
 
     csr_file csr_file_inst (
         .clk(clk),
@@ -147,15 +113,11 @@
         .mip_out(mip)
     );
 
-    // ============================================================
-    // EXCEPTIONS
-    // ============================================================
-
     always_comb begin
         exception_taken = 1'b0;
         exception_cause = 32'h0;
 
-        unique case (status_forwards_in)
+        case (status_forwards_in)
             pipeline_status::ECALL:               begin exception_taken = 1; exception_cause = 11; end
             pipeline_status::EBREAK:              begin exception_taken = 1; exception_cause = 3;  end
             pipeline_status::FETCH_FAULT:         begin exception_taken = 1; exception_cause = 1;  end
@@ -169,26 +131,20 @@
         endcase
     end
 
-    // ============================================================
-    // INTERRUPTS
-    // ============================================================
-
     always_comb begin
         mstatus_next = mstatus;
 
-        // CSR write to mstatus
-        if (csr_instruction && pipeline_forwards_valid && csr_addr == csr::MSTATUS) begin
+        if (csr_instruction && pipeline_forwards_valid && csr_addr == csr_pkg::MSTATUS) begin
             mstatus_next = csr_write_data;
         end
 
-        // MRET modifies mstatus
         else if (mret && pipeline_forwards_valid) begin
-            mstatus_next[3] = mstatus[7]; // MIE  <= MPIE
-            mstatus_next[7] = 1'b1;       // MPIE <= 1
+            mstatus_next[3] = mstatus[7];
+            mstatus_next[7] = 1'b1;
         end
     end
 
-    assign mie_next = (csr_instruction && pipeline_forwards_valid && csr_addr == csr::MIE)
+    assign mie_next = (csr_instruction && pipeline_forwards_valid && csr_addr == csr_pkg::MIE)
             ? csr_write_data : mie;
 
     assign mie_global = mstatus_next[3];
@@ -201,19 +157,13 @@
             meip 
             && meie 
             && mie_global
-            && pipeline_forwards_valid; // Interrupt gated by pipeline status
-            // to prevent inflight memory ops interrupted by ISR
+            && pipeline_forwards_valid;
 
     assign tim_irq = 
             mtip 
             && mtie 
             && mie_global
-            && pipeline_forwards_valid; // Same for timer interrupt
-
-
-    // ============================================================
-    // TRAP DECISION
-    // ============================================================
+            && pipeline_forwards_valid;
 
     always_comb begin
         trap_taken = 1'b0;
@@ -236,11 +186,6 @@
     assign trap_pc = exception_taken ? program_counter_in : (ext_irq || tim_irq) ? 
         next_program_counter_in : '0;
 
-
-    // ============================================================
-    // PIPELINE CONTROL
-    // ============================================================
-
     always_comb begin
         status_backwards_out = pipeline_status::READY;
         jump_address_backwards_out = 32'h0;
@@ -253,16 +198,11 @@
             status_backwards_out = pipeline_status::JUMP;
             jump_address_backwards_out = mepc;
         end
-        else if (instruction_in.op == op::FENCE_I && pipeline_forwards_valid) begin
+        else if (instruction_in.op == op_pkg::FENCE_I && pipeline_forwards_valid) begin
             status_backwards_out = pipeline_status::JUMP;
             jump_address_backwards_out = next_program_counter_in;
         end
     end
-
-
-    // ============================================================
-    // WRITEBACK
-    // ============================================================
 
     always_comb begin
 
@@ -277,16 +217,12 @@
         
     end
 
-
-    // ================================================================
-    // FORWARDING
-    // ================================================================
-
-    assign writes_rd = pipeline_forwards_valid && !(instruction_in.op inside {
-        op::SB, op::SH, op::SW,
-        op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU,
-        op::MRET
-    }); // If doesn't write, not to be forwarded
+    assign writes_rd = pipeline_forwards_valid && !(
+        (instruction_in.op == op_pkg::SB) || (instruction_in.op == op_pkg::SH) || (instruction_in.op == op_pkg::SW) ||
+        (instruction_in.op == op_pkg::BEQ) || (instruction_in.op == op_pkg::BNE) || (instruction_in.op == op_pkg::BLT) ||
+        (instruction_in.op == op_pkg::BGE) || (instruction_in.op == op_pkg::BLTU) || (instruction_in.op == op_pkg::BGEU) ||
+        (instruction_in.op == op_pkg::MRET)
+    );
 
     assign forwarding_out.data_valid = pipeline_forwards_valid;
 
@@ -294,5 +230,4 @@
 
     assign forwarding_out.address = writes_rd ? instruction_in.rd_address : 5'b0;
 
-    // ref_writeback_stage golden(.*);
 endmodule

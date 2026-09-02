@@ -4,3 +4,5 @@
 
 # memory images
 /synth/tang9k_mem_inits/
+
+*.vcd

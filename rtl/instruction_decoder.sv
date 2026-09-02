@@ -1,17 +1,13 @@
 /* File: instruction_decoder.sv
- * Brought up by Md Mosharraf Hossain 
- * Extended(M-extension) by Md. Jannatul Nayem
- *
- * Organization: Alpha Science Lab
- * March 2026
+ * Alternate implementation for iverilog compatibility
 */
-
-// `define M_EXT
 
 module instruction_decoder (
     input  logic [31:0]   instruction_in,
     output instruction::t instruction_out
 );
+    import op_pkg::*;
+    import csr_pkg::*;
 
     logic [6:0] opcode;
     logic [2:0] funct3;
@@ -64,68 +60,63 @@ module instruction_decoder (
     
     assign imm_csr = {27'b0,instruction_in[19:15]};
 
-
-    /* Optimized csr_addr decode
-        Md. Jannatul Nayem*/
-    
-    // Check if csr op is legal
-    assign csr_addr = csr::t'(instruction_in[31:20]);
+    assign csr_addr = instruction_in[31:20];
     
     always_comb begin
         csr_valid = 1'b0;
     
-        unique case (1'b1)
+        case (1'b1)
     
             // Machine Information Registers
-            (csr_addr >= csr::MVENDORID  &&
-             csr_addr <= csr::MCONFIGPTR):
+            (csr_addr >= csr_pkg::MVENDORID  &&
+             csr_addr <= csr_pkg::MCONFIGPTR):
     
                 csr_valid = 1'b1;
     
             // Standard machine CSRs
-            (csr_addr == csr::MSTATUS)     ||
-            (csr_addr == csr::MISA)        ||
-            (csr_addr == csr::MEDELEG)     ||
-            (csr_addr == csr::MIDELEG)     ||
-            (csr_addr == csr::MIE)         ||
-            (csr_addr == csr::MTVEC)       ||
-            (csr_addr == csr::MCOUNTEREN)  ||
-            (csr_addr == csr::MSTATUSH)    ||
-            (csr_addr == csr::MSCRATCH)    ||
-            (csr_addr == csr::MEPC)        ||
-            (csr_addr == csr::MCAUSE)      ||
-            (csr_addr == csr::MTVAL)       ||
-            (csr_addr == csr::MIP):
+            (csr_addr == csr_pkg::MSTATUS)     ||
+            (csr_addr == csr_pkg::MISA)        ||
+            (csr_addr == csr_pkg::MEDELEG)     ||
+            (csr_addr == csr_pkg::MIDELEG)     ||
+            (csr_addr == csr_pkg::MIE)         ||
+            (csr_addr == csr_pkg::MTVEC)       ||
+            (csr_addr == csr_pkg::MCOUNTEREN)  ||
+            (csr_addr == csr_pkg::MSTATUSH)    ||
+            (csr_addr == csr_pkg::MSCRATCH)    ||
+            (csr_addr == csr_pkg::MEPC)        ||
+            (csr_addr == csr_pkg::MCAUSE)      ||
+            (csr_addr == csr_pkg::MTVAL)       ||
+            (csr_addr == csr_pkg::MIP):
     
                 csr_valid = 1'b1;
     
             // Counters
-            (csr_addr >= csr::MCYCLE &&
-             csr_addr <= csr::MINSTRET):
+            (csr_addr >= csr_pkg::MCYCLE &&
+             csr_addr <= csr_pkg::MINSTRET):
     
                 csr_valid = 1'b1;
     
             // High counters
-            (csr_addr >= csr::MCYCLEH &&
-             csr_addr <= csr::MINSTRETH):
+            (csr_addr >= csr_pkg::MCYCLEH &&
+             csr_addr <= csr_pkg::MINSTRETH):
     
                 csr_valid = 1'b1;
     
             // HPM counters
-            (csr_addr >= csr::MHPMCOUNTER3 &&
-             csr_addr <= csr::MHPMCOUNTER31):
+            (csr_addr >= csr_pkg::MHPMCOUNTER3 &&
+             csr_addr <= csr_pkg::MHPMCOUNTER31):
     
                 csr_valid = 1'b1;
     
             // HPM counter high
-            (csr_addr >= csr::MHPMCOUNTER3H &&
-             csr_addr <= csr::MHPMCOUNTER31H):
+            (csr_addr >= csr_pkg::MHPMCOUNTER3H &&
+             csr_addr <= csr_pkg::MHPMCOUNTER31H):
     
                 csr_valid = 1'b1;
     
             // HPM events
-            (csr_addr >= csr::MHPMEVENT3 &&
-             csr_addr <= csr::MHPMEVENT31):
+            (csr_addr >= csr_pkg::MHPMEVENT3 &&
+             csr_addr <= csr_pkg::MHPMEVENT31):
     
                 csr_valid = 1'b1;
     
@@ -135,14 +126,11 @@ module instruction_decoder (
         endcase
     end
 
-
-    // assign csr_read_only = instruction_in[31:30] >= 2'b10;
     assign csr_read_only = (instruction_in[31:30] == 2'b11);
-
 
     always_comb begin
 
-        instruction_out.op          = op::ILLEGAL;
+        instruction_out.op          = op_pkg::ILLEGAL;
 
         instruction_out.rd_address  = rd;
         instruction_out.rs1_address = rs1;
@@ -150,7 +138,7 @@ module instruction_decoder (
 
         csr_is_op                   = 1'b0;
         csr_write                   = 1'b0;
-        instruction_out.csr         = csr::t'(instruction_in[31:20]);
+        instruction_out.csr         = csr_pkg::t'(instruction_in[31:20]);
 
         instruction_out.immediate   = 32'b0;
 
@@ -158,7 +146,7 @@ module instruction_decoder (
 
             // LUI
             7'b0110111: begin
-                instruction_out.op        = op::LUI;
+                instruction_out.op        = op_pkg::LUI;
                 instruction_out.immediate = imm_u;
                 instruction_out.rs1_address = '0;
                 instruction_out.rs2_address = '0;
@@ -166,29 +154,26 @@ module instruction_decoder (
 
             // AUIPC
             7'b0010111: begin
-                instruction_out.op        = op::AUIPC;
+                instruction_out.op        = op_pkg::AUIPC;
                 instruction_out.immediate = imm_u;
                 instruction_out.rs1_address = '0;
                 instruction_out.rs2_address = '0;
-
             end
 
             // JAL
             7'b1101111: begin
-                instruction_out.op        = op::JAL;
+                instruction_out.op        = op_pkg::JAL;
                 instruction_out.immediate = imm_j;
                 instruction_out.rs1_address = '0;
                 instruction_out.rs2_address = '0;
-
             end
 
             // JALR
             7'b1100111: begin
                 if (funct3 == 3'b000) begin
-                    instruction_out.op        = op::JALR;
+                    instruction_out.op        = op_pkg::JALR;
                     instruction_out.immediate = imm_i;
                     instruction_out.rs2_address = '0;
-
                 end
             end
 
@@ -197,12 +182,12 @@ module instruction_decoder (
                 instruction_out.immediate = imm_b;
                 instruction_out.rd_address  = '0;
                 case (funct3)
-                    3'b000: instruction_out.op = op::BEQ;
-                    3'b001: instruction_out.op = op::BNE;
-                    3'b100: instruction_out.op = op::BLT;
-                    3'b101: instruction_out.op = op::BGE;
-                    3'b110: instruction_out.op = op::BLTU;
-                    3'b111: instruction_out.op = op::BGEU;
+                    3'b000: instruction_out.op = op_pkg::BEQ;
+                    3'b001: instruction_out.op = op_pkg::BNE;
+                    3'b100: instruction_out.op = op_pkg::BLT;
+                    3'b101: instruction_out.op = op_pkg::BGE;
+                    3'b110: instruction_out.op = op_pkg::BLTU;
+                    3'b111: instruction_out.op = op_pkg::BGEU;
                 endcase
             end
 
@@ -211,11 +196,11 @@ module instruction_decoder (
                 instruction_out.immediate = imm_i;
                 instruction_out.rs2_address = '0;
                 case (funct3)
-                    3'b000: instruction_out.op = op::LB;
-                    3'b001: instruction_out.op = op::LH;
-                    3'b010: instruction_out.op = op::LW;
-                    3'b100: instruction_out.op = op::LBU;
-                    3'b101: instruction_out.op = op::LHU;
+                    3'b000: instruction_out.op = op_pkg::LB;
+                    3'b001: instruction_out.op = op_pkg::LH;
+                    3'b010: instruction_out.op = op_pkg::LW;
+                    3'b100: instruction_out.op = op_pkg::LBU;
+                    3'b101: instruction_out.op = op_pkg::LHU;
                 endcase
             end
 
@@ -224,9 +209,9 @@ module instruction_decoder (
                 instruction_out.immediate = imm_s;
                 instruction_out.rd_address  = '0;
                 case (funct3)
-                    3'b000: instruction_out.op = op::SB;
-                    3'b001: instruction_out.op = op::SH;
-                    3'b010: instruction_out.op = op::SW;
+                    3'b000: instruction_out.op = op_pkg::SB;
+                    3'b001: instruction_out.op = op_pkg::SH;
+                    3'b010: instruction_out.op = op_pkg::SW;
                 endcase
             end
 
@@ -235,26 +220,26 @@ module instruction_decoder (
                 instruction_out.immediate = imm_i;
                 instruction_out.rs2_address = '0;
                 case (funct3)
-                    3'b000: instruction_out.op = op::ADDI;
-                    3'b010: instruction_out.op = op::SLTI;
-                    3'b011: instruction_out.op = op::SLTIU;
-                    3'b100: instruction_out.op = op::XORI;
-                    3'b110: instruction_out.op = op::ORI;
-                    3'b111: instruction_out.op = op::ANDI;
+                    3'b000: instruction_out.op = op_pkg::ADDI;
+                    3'b010: instruction_out.op = op_pkg::SLTI;
+                    3'b011: instruction_out.op = op_pkg::SLTIU;
+                    3'b100: instruction_out.op = op_pkg::XORI;
+                    3'b110: instruction_out.op = op_pkg::ORI;
+                    3'b111: instruction_out.op = op_pkg::ANDI;
 
                     3'b001: begin
                         if (funct7 == 7'b0000000) begin
-                            instruction_out.op = op::SLLI;
+                            instruction_out.op = op_pkg::SLLI;
                             instruction_out.immediate = imm_i_s;
                         end
                     end
                     3'b101: begin
                         if (funct7 == 7'b0000000) begin
-                            instruction_out.op = op::SRLI;
+                            instruction_out.op = op_pkg::SRLI;
                             instruction_out.immediate = imm_i_s;
                         end
                         else if (funct7 == 7'b0100000) begin
-                            instruction_out.op = op::SRAI;
+                            instruction_out.op = op_pkg::SRAI;
                             instruction_out.immediate = imm_i_s;
                         end
                     end
@@ -267,94 +252,94 @@ module instruction_decoder (
 
                     3'b000: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::ADD;
+                            instruction_out.op = op_pkg::ADD;
 
                         else if (funct7 == 7'b0100000)
-                            instruction_out.op = op::SUB;
+                            instruction_out.op = op_pkg::SUB;
                         
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::MUL;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::MUL;
                     `endif
                     
                     end
 
                     3'b001: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::SLL;
+                            instruction_out.op = op_pkg::SLL;
                         
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::MULH;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::MULH;
                     `endif
                     
                     end
 
                     3'b010: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::SLT;
+                            instruction_out.op = op_pkg::SLT;
                     
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::MULHSU;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::MULHSU;
                     `endif
                     
                     end
 
                     3'b011: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::SLTU;
+                            instruction_out.op = op_pkg::SLTU;
                     
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::MULHU;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::MULHU;
                     `endif
                     
                     end
 
                     3'b100: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::XOR;
+                            instruction_out.op = op_pkg::XOR;
                     
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::DIV;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::DIV;
                     `endif
                     
                     end
 
                     3'b101: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::SRL;
+                            instruction_out.op = op_pkg::SRL;
 
                         else if (funct7 == 7'b0100000)
-                            instruction_out.op = op::SRA;
+                            instruction_out.op = op_pkg::SRA;
                     
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::DIVU;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::DIVU;
                     `endif
                     
                     end
 
                     3'b110: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::OR;
+                            instruction_out.op = op_pkg::OR;
                     
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::REM;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::REM;
                     `endif
                     
                     end
 
                     3'b111: begin
                         if (funct7 == 7'b0000000)
-                            instruction_out.op = op::AND;
+                            instruction_out.op = op_pkg::AND;
                     
                     `ifdef M_EXT
-                        else if (funct7 == 7'b0000001) /* M-ext */
-                            instruction_out.op = op::REMU;
+                        else if (funct7 == 7'b0000001)
+                            instruction_out.op = op_pkg::REMU;
                     `endif
                     
                     end
@@ -367,8 +352,8 @@ module instruction_decoder (
                 instruction_out.immediate = imm_i;
                 instruction_out.rs2_address = '0;
                 case (funct3)
-                    3'b000: instruction_out.op = op::FENCE;
-                    3'b001: instruction_out.op = op::FENCE_I;
+                    3'b000: instruction_out.op = op_pkg::FENCE;
+                    3'b001: instruction_out.op = op_pkg::FENCE_I;
                 endcase
             end
 
@@ -381,33 +366,33 @@ module instruction_decoder (
                         instruction_out.rs1_address = '0;
                         instruction_out.rs2_address = '0;                        
                         case (instruction_in[31:20])
-                            12'h000: instruction_out.op = op::ECALL;
-                            12'h001: instruction_out.op = op::EBREAK;
-                            12'h302: instruction_out.op = op::MRET;
-                            12'h105: instruction_out.op = op::WFI;
+                            12'h000: instruction_out.op = op_pkg::ECALL;
+                            12'h001: instruction_out.op = op_pkg::EBREAK;
+                            12'h302: instruction_out.op = op_pkg::MRET;
+                            12'h105: instruction_out.op = op_pkg::WFI;
                         endcase
                     end
 
                     3'b001: begin
-                        instruction_out.op = op::CSRRW;
+                        instruction_out.op = op_pkg::CSRRW;
                         instruction_out.rs2_address = '0;
                         csr_is_op = 1'b1;
                         csr_write = 1'b1;
                     end
                     3'b010: begin
-                        instruction_out.op = op::CSRRS;
+                        instruction_out.op = op_pkg::CSRRS;
                         instruction_out.rs2_address = '0;
                         csr_is_op = 1'b1;
                         csr_write = (rs1 != 5'b0);
                     end
                     3'b011: begin
-                        instruction_out.op = op::CSRRC;
+                        instruction_out.op = op_pkg::CSRRC;
                         instruction_out.rs2_address = '0;
                         csr_is_op = 1'b1;
                         csr_write = (rs1 != 5'b0);
                     end
                     3'b101: begin
-                        instruction_out.op = op::CSRRWI;
+                        instruction_out.op = op_pkg::CSRRWI;
                         instruction_out.immediate = imm_csr;
                         instruction_out.rs1_address = '0;
                         instruction_out.rs2_address = '0;
@@ -415,7 +400,7 @@ module instruction_decoder (
                         csr_write = 1'b1;
                     end
                     3'b110: begin
-                        instruction_out.op = op::CSRRSI;
+                        instruction_out.op = op_pkg::CSRRSI;
                         instruction_out.immediate = imm_csr;
                         instruction_out.rs1_address = '0;
                         instruction_out.rs2_address = '0;
@@ -423,7 +408,7 @@ module instruction_decoder (
                         csr_write = (imm_csr != 32'b0);
                     end
                     3'b111: begin
-                        instruction_out.op = op::CSRRCI;
+                        instruction_out.op = op_pkg::CSRRCI;
                         instruction_out.immediate = imm_csr;
                         instruction_out.rs1_address = '0;
                         instruction_out.rs2_address = '0;
@@ -441,19 +426,15 @@ module instruction_decoder (
         if (csr_is_op) begin
 
             if (!csr_valid) begin
-                instruction_out.op = op::ILLEGAL;
+                instruction_out.op = op_pkg::ILLEGAL;
             end
 
             else if (csr_write && csr_read_only) begin
-                instruction_out.op = op::ILLEGAL;
+                instruction_out.op = op_pkg::ILLEGAL;
             end
 
         end
 
     end
-
-
-    // TODO: Delete the following line and implement this module.
-    // ref_instruction_decoder golden(.*);
 
 endmodule

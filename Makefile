@@ -13,6 +13,8 @@ endif
 # Binaries
 VERILATOR         ?= verilator
 PYTHON            ?= python3
+IVERILOG          ?= iverilog
+VVP               ?= vvp
 
 # CC              = /opt/riscv32i/bin/riscv32-unknown-elf-gcc
 CC                = riscv32-unknown-elf-gcc
@@ -49,6 +51,8 @@ endif
 VERILATOR_FLAGS   += $(abspath $(wildcard $(REF_DIR)/*.so)) -j
 VERILATOR_FLAGS   += -f $(SIM_DIR)/files.txt
 
+ICARUS_FLAGS      = -g2012 -Wall
+
 DEFINES_DIR       = defines
 REF_DIR           = ref
 STD_LIB_DIR       = std
@@ -63,6 +67,11 @@ TEST_DIR          = test
 ASM_DIR           = $(TEST_DIR)/asm
 C_DIR             = $(TEST_DIR)/c
 SV_DIR            = $(TEST_DIR)/sv
+
+ICARUS_SIM_DIR    = $(BUILD_DIR)/icarus
+ICARUS_TOP        = icarus_top
+ICARUS_OUT        = $(ICARUS_SIM_DIR)/$(ICARUS_TOP).out
+ICARUS_TEST       ?= $(ASM_DIR)/ops
 
 TTYPORT           ?= /dev/ttyUSB1
 BAUD              ?= 115200
@@ -238,6 +247,22 @@ $(C_TEST_NAMES): $(C_DIR)/%: $(BUILD_DIR)/$(C_DIR)/%/init.mem $(BUILD_DIR)/$(C_D
 .PHONY: fw_upd
 fw_upd: $(BUILD_DIR)/$(C_DIR)/$(FIRMWARE)/out.hex
 	@ $(PYTHON) fw_upd.py $(TTYPORT) $(BAUD) $(BUILD_DIR)/$(C_DIR)/$(FIRMWARE)/out.hex
+
+################################################################################
+#                              Icarus Verilog                                  #
+################################################################################
+
+# Compile with Icarus Verilog
+icarus_compile:
+	@ mkdir -p $(ICARUS_SIM_DIR)
+	$(IVERILOG) $(ICARUS_FLAGS) -s $(ICARUS_TOP) -o $(ICARUS_OUT) \
+		-c $(SIM_DIR)/files.f \
+		$(SIM_DIR)/$(ICARUS_TOP).sv
+
+# Run Icarus Verilog simulation
+.PHONY: sim_icarus
+sim_icarus: icarus_compile $(BUILD_DIR)/$(ICARUS_TEST)/init.mem
+	@ cd $(BUILD_DIR)/$(ICARUS_TEST) && $(VVP) $(CURDIR)/$(ICARUS_OUT)
 
 ################################################################################
 #                             SystemVerilog Tests                              #

@@ -1,8 +1,6 @@
 /* 
 * File: csr_file.sv
-* Brought up by Md. Jannatul Nayem
-* Organization: Alpha Science Lab
-* April 2026
+* Alternate implementation for iverilog compatibility
 */
 
 module csr_file (
@@ -12,7 +10,7 @@ module csr_file (
 
     // CSR access
     input  logic        csr_write_en,
-    input  csr::t       csr_addr,
+    input  csr_pkg::t   csr_addr,
     input  logic [31:0] csr_write_data,
     output logic [31:0] csr_read_data,
 
@@ -38,10 +36,7 @@ module csr_file (
     output logic [31:0] mie_out,
     output logic [31:0] mip_out
 );
-
-    // ============================================================
-    // REGISTERS
-    // ============================================================
+    import csr_pkg::*;
 
     bit [31:0] mstatus, mie, mip;
     bit [31:0] mtvec, mepc, mcause, mscratch;
@@ -52,19 +47,11 @@ module csr_file (
     logic mie_eff, meie_eff, mtie_eff;
     bit trap_history;
 
-    // ============================================================
-    // OUTPUTS
-    // ============================================================
-
     assign mstatus_out  = mstatus;
     assign mie_out      = mie;
     assign mip_out      = mip;
     assign mtvec_out    = mtvec;
     assign mepc_out     = mepc;
-
-    // ============================================================
-    // INTERRUPT PENDING (LEVEL-SENSITIVE)
-    // ============================================================
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -75,34 +62,28 @@ module csr_file (
         end
     end
 
-    // ============================================================
-    // PERFORMANCE COUNTERS
-    // ============================================================
-
     always_comb begin
-        // Default increments
         mcycle_next   = mcycle + 1;
         minstret_next = minstret;
 
         if (instruction_retired)
             minstret_next = minstret + 1;
 
-        // CSR overwrite (takes priority over increment)
         if (csr_write_en) begin
-            unique case (csr_addr)
+            case (csr_addr)
 
-                csr::MCYCLE: begin
+                csr_pkg::MCYCLE: begin
                     mcycle_next[31:0] = csr_write_data;
                 end
 
-                csr::MCYCLEH:
+                csr_pkg::MCYCLEH:
                     mcycle_next[63:32] = csr_write_data;
 
-                csr::MINSTRET: begin
+                csr_pkg::MINSTRET: begin
                     minstret_next[31:0] = csr_write_data;
                 end
 
-                csr::MINSTRETH:
+                csr_pkg::MINSTRETH:
                     minstret_next[63:32] = csr_write_data;
 
                 default: ;
@@ -115,28 +96,21 @@ module csr_file (
         mtie_eff = mie[7];
         mie_eff = mstatus[3];
 
-        // If we're writing MSTATUS this cycle
-        // use the NEW value
-        if (csr_write_en && csr_addr == csr::MSTATUS) begin
+        if (csr_write_en && csr_addr == csr_pkg::MSTATUS) begin
             mie_eff = csr_write_data[3];
         end
-        // Same for MIE if written this cycle
-        else if (csr_write_en && csr_addr == csr::MIE) begin
+        else if (csr_write_en && csr_addr == csr_pkg::MIE) begin
             meie_eff = csr_write_data[11];
             mtie_eff = csr_write_data[7];
         end
         else if (mret) begin
-            mie_eff = mstatus[7]; // MIE  <= MPIE
+            mie_eff = mstatus[7];
         end
 
         if (trap_history && trap_taken) begin
-            mie_eff = mstatus[7]; // MIE  <= MPIE
+            mie_eff = mstatus[7];
         end
     end
-
-    // ============================================================
-    // MAIN CSR STATE
-    // ============================================================
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -158,65 +132,48 @@ module csr_file (
             mcycle   <= mcycle_next;
             minstret <= minstret_next;
 
-            // ----------------------------------------------------
-            // TRAP ENTRY (HIGHEST PRIORITY)
-            // ----------------------------------------------------
             if (trap_taken) begin
 
-                /* Don't allow pending interrupts mess up MEPC*/
-                /* While MRET*/
                 if (!mret) mepc <= {trap_pc[31:2], 2'b00};
                 
                 mcause <= trap_cause;
 
-                // Save interrupt enable
-                mstatus[7] <= mie_eff;    // MPIE = MIE
-                mstatus[3] <= 1'b0;       // MIE = 0
+                mstatus[7] <= mie_eff;
+                mstatus[3] <= 1'b0;
 
-                /*Not part of trap routine*/
-                /*Were added since trap overrides write*/
                 mie[11] <= meie_eff;
                 mie[7] <= mtie_eff;
 
                 trap_history <= 1'b1;
 
-                // $display("||||| TRAP @%0d |||||\n",$time);
             end
 
-            // ----------------------------------------------------
-            // TRAP RETURN (NO PENDING INTERRUPTS)
-            // ----------------------------------------------------
             else if (mret) begin
-                mstatus[3] <= mstatus[7]; // restore MIE
-                mstatus[7] <= 1'b1;       // MPIE = 1
+                mstatus[3] <= mstatus[7];
+                mstatus[7] <= 1'b1;
 
                 trap_history <= 1'b0;
-                
-                // $display("||||| MRET @%0d |||||\n",$time);
             end
 
-            // ----------------------------------------------------
-            // CSR WRITES
-            // ----------------------------------------------------
             else if (csr_write_en) begin
-                unique case (csr_addr)
+                case (csr_addr)
 
-                    csr::MSTATUS:
+                    csr_pkg::MSTATUS:
                         mstatus <= csr_write_data & 32'h00000088;
 
-                    csr::MIE:
+                    csr_pkg::MIE:
                         mie <= csr_write_data & 32'h00000880;
 
-                    csr::MTVEC:
+                    csr_pkg::MTVEC:
                         mtvec <= {csr_write_data[31:2], 2'b00};
 
-                    csr::MEPC:
+                    csr_pkg::MEPC:
                         mepc <= {csr_write_data[31:2], 2'b00};
 
-                    csr::MCAUSE:
+                    csr_pkg::MCAUSE:
                         mcause <= csr_write_data;
 
-                    csr::MSCRATCH:
+                    csr_pkg::MSCRATCH:
                         mscratch <= csr_write_data;
 
                     default: ;
@@ -225,26 +182,22 @@ module csr_file (
         end
     end
 
-    // ============================================================
-    // CSR READ
-    // ============================================================
-
     always_comb begin
         csr_read_data = 32'd0;
 
-        unique case (csr_addr)
-            csr::MSTATUS  : csr_read_data = mstatus;
-            csr::MIE      : csr_read_data = mie;
-            csr::MIP      : csr_read_data = mip;
-            csr::MTVEC    : csr_read_data = mtvec;
-            csr::MEPC     : csr_read_data = mepc;
-            csr::MCAUSE   : csr_read_data = mcause;
-            csr::MSCRATCH : csr_read_data = mscratch;
+        case (csr_addr)
+            csr_pkg::MSTATUS  : csr_read_data = mstatus;
+            csr_pkg::MIE      : csr_read_data = mie;
+            csr_pkg::MIP      : csr_read_data = mip;
+            csr_pkg::MTVEC    : csr_read_data = mtvec;
+            csr_pkg::MEPC     : csr_read_data = mepc;
+            csr_pkg::MCAUSE   : csr_read_data = mcause;
+            csr_pkg::MSCRATCH : csr_read_data = mscratch;
 
-            csr::MCYCLE   : csr_read_data = mcycle[31:0];
-            csr::MCYCLEH  : csr_read_data = mcycle[63:32];
-            csr::MINSTRET : csr_read_data = minstret[31:0];
-            csr::MINSTRETH: csr_read_data = minstret[63:32];
+            csr_pkg::MCYCLE   : csr_read_data = mcycle[31:0];
+            csr_pkg::MCYCLEH  : csr_read_data = mcycle[63:32];
+            csr_pkg::MINSTRET : csr_read_data = minstret[31:0];
+            csr_pkg::MINSTRETH: csr_read_data = minstret[63:32];
 
             default: ;
         endcase

@@ -1,47 +1,30 @@
 /* File: memory_stage.sv
- * Brought up by Md. Jannatul Nayem
- * Organization: Alpha Science Lab
- * March 2026  
- *
- * Responsibilities:
- *  - Execute all LOAD instructions
- *      LB, LH, LW, LBU, LHU
- *  - Execute all STORE instructions
- *      SB, SH, SW
- *  - Control Wishbone bus transactions
- *  - Detect misaligned accesses
- *  - Perform sign / zero extension for loads
- *  - Stall the pipeline while a memory transaction is in progress
- *  - Provide forwarding data for later pipeline stages
- *
- * Important rule:
- * Memory transactions cannot be aborted once started because
- * reads or writes may have side effects.
+ * Alternate implementation for iverilog compatibility
  */
 
- module memory_stage (
+module memory_stage (
     input logic clk,
     input logic rst,
 
-    //============================================================
-    // Wishbone memory interface (master)
-    //============================================================
-    wishbone_interface.master wb,
+    // Wishbone memory interface (discrete master)
+    output logic [31:0] wb_adr,
+    output logic [3:0]  wb_sel,
+    output logic [31:0] wb_dat_mosi,
+    input  logic [31:0] wb_dat_miso,
+    output logic        wb_cyc,
+    output logic        wb_stb,
+    output logic        wb_we,
+    input  logic        wb_ack,
+    input  logic        wb_err,
 
-    //============================================================
     // Inputs from Execute Stage
-    //============================================================
-
     input logic [31:0] source_data_in,
     input logic [31:0] rd_data_in,
     input instruction::t instruction_in,
     input logic [31:0] program_counter_in,
     input logic [31:0] next_program_counter_in,
 
-    //============================================================
     // Registered outputs to Writeback Stage
-    //============================================================
-
     output logic [31:0] source_data_reg_out,
     output logic [31:0] rd_data_reg_out,
     output instruction::t instruction_reg_out,
@@ -50,10 +33,7 @@
 
     output forwarding::t forwarding_out,
 
-    //============================================================
     // Pipeline control signals
-    //============================================================
-
     input  pipeline_status::forwards_t  status_forwards_in,
     output pipeline_status::forwards_t  status_forwards_out,
 
@@ -63,10 +43,7 @@
     input  logic [31:0] jump_address_backwards_in,
     output logic [31:0] jump_address_backwards_out
 );
-
-    //============================================================
-    // Internal signals
-    //============================================================
+    import op_pkg::*;
 
     logic pipeline_forwards_valid;
     assign pipeline_forwards_valid = (status_forwards_in == pipeline_status::VALID);
@@ -82,145 +59,115 @@
 
     bit writes_rd, bypass_ready;
 
-    //============================================================
-    // Instruction type detection
-    //============================================================
-
     assign load_op =
-        (instruction_in.op == op::LB )  ||
-        (instruction_in.op == op::LH )  ||
-        (instruction_in.op == op::LW )  ||
-        (instruction_in.op == op::LBU)  ||
-        (instruction_in.op == op::LHU);
+        (instruction_in.op == op_pkg::LB )  ||
+        (instruction_in.op == op_pkg::LH )  ||
+        (instruction_in.op == op_pkg::LW )  ||
+        (instruction_in.op == op_pkg::LBU)  ||
+        (instruction_in.op == op_pkg::LHU);
 
     assign store_op =
-        (instruction_in.op == op::SB) ||
-        (instruction_in.op == op::SH) ||
-        (instruction_in.op == op::SW);
+        (instruction_in.op == op_pkg::SB) ||
+        (instruction_in.op == op_pkg::SH) ||
+        (instruction_in.op == op_pkg::SW);
 
     assign address = rd_data_in;
-
-    //============================================================
-    // Misalignment detection
-    //============================================================
 
     always_comb begin
         misaligned = 1'b0;
 
         case (instruction_in.op)
-            op::LH, op::LHU, op::SH:
+            op_pkg::LH, op_pkg::LHU, op_pkg::SH:
                 misaligned = address[0];
 
-            op::LW, op::SW:
+            op_pkg::LW, op_pkg::SW:
                 misaligned = |address[1:0];
 
             default:;
         endcase
     end
 
-    //============================================================
-    // Wishbone transaction controller
-    //============================================================
-
     assign mem_op = !rst && (load_op || store_op) && pipeline_forwards_valid
             && !misaligned && (status_backwards_in == pipeline_status::READY);
 
-    // Always drive bus when memory op is active
-    assign wb.cyc = mem_op;
-    assign wb.stb = mem_op;
-    assign wb.we  = store_op;
+    assign wb_cyc = mem_op;
+    assign wb_stb = mem_op;
+    assign wb_we  = store_op;
 
-    assign wb.adr = address[31:2];
+    assign wb_adr = address[31:2];
 
-    // Byte select
-    assign wb.sel =
-        ((instruction_in.op == op::LB)  || (instruction_in.op == op::LBU) ||
-        (instruction_in.op == op::SB)) ? (4'b0001 << address[1:0]) :
+    assign wb_sel =
+        ((instruction_in.op == op_pkg::LB)  || (instruction_in.op == op_pkg::LBU) ||
+        (instruction_in.op == op_pkg::SB)) ? (4'b0001 << address[1:0]) :
 
-        ((instruction_in.op == op::LH)  || (instruction_in.op == op::LHU) ||
-        (instruction_in.op == op::SH)) ? (address[1] ? 4'b1100 : 4'b0011) :
+        ((instruction_in.op == op_pkg::LH)  || (instruction_in.op == op_pkg::LHU) ||
+        (instruction_in.op == op_pkg::SH)) ? (address[1] ? 4'b1100 : 4'b0011) :
 
-        ((instruction_in.op == op::LW) || (instruction_in.op == op::SW)) ?
+        ((instruction_in.op == op_pkg::LW) || (instruction_in.op == op_pkg::SW)) ?
 
         4'b1111 : 4'b0000;
 
-    // Write data alignment
-    assign wb.dat_mosi =
-        (instruction_in.op == op::SB) ? (source_data_in << (8 * address[1:0])) :
-        (instruction_in.op == op::SH) ? (source_data_in << (16 * address[1])) :
-        (instruction_in.op == op::SW) ? source_data_in : 32'h0;
-
-
-    //============================================================
-    // Load data extraction and sign extension
-    //============================================================
+    assign wb_dat_mosi =
+        (instruction_in.op == op_pkg::SB) ? (source_data_in << (8 * address[1:0])) :
+        (instruction_in.op == op_pkg::SH) ? (source_data_in << (16 * address[1])) :
+        (instruction_in.op == op_pkg::SW) ? source_data_in : 32'h0;
 
     always_comb begin
 
         load_data = 32'b0;
 
-        if (load_op && wb.ack && !wb.err) begin
+        if (load_op && wb_ack && !wb_err) begin
 
             case (instruction_in.op)
 
-                op::LB: begin
+                op_pkg::LB: begin
                     case (address[1:0])
-                        0: load_data = {{24{wb.dat_miso[7]}}, wb.dat_miso[7:0]};
-                        1: load_data = {{24{wb.dat_miso[15]}}, wb.dat_miso[15:8]};
-                        2: load_data = {{24{wb.dat_miso[23]}}, wb.dat_miso[23:16]};
-                        3: load_data = {{24{wb.dat_miso[31]}}, wb.dat_miso[31:24]};
+                        0: load_data = {{24{wb_dat_miso[7]}}, wb_dat_miso[7:0]};
+                        1: load_data = {{24{wb_dat_miso[15]}}, wb_dat_miso[15:8]};
+                        2: load_data = {{24{wb_dat_miso[23]}}, wb_dat_miso[23:16]};
+                        3: load_data = {{24{wb_dat_miso[31]}}, wb_dat_miso[31:24]};
                     endcase
                 end
 
-                op::LBU: begin
+                op_pkg::LBU: begin
                     case (address[1:0])
-                        0: load_data = {24'b0, wb.dat_miso[7:0]};
-                        1: load_data = {24'b0, wb.dat_miso[15:8]};
-                        2: load_data = {24'b0, wb.dat_miso[23:16]};
-                        3: load_data = {24'b0, wb.dat_miso[31:24]};
+                        0: load_data = {24'b0, wb_dat_miso[7:0]};
+                        1: load_data = {24'b0, wb_dat_miso[15:8]};
+                        2: load_data = {24'b0, wb_dat_miso[23:16]};
+                        3: load_data = {24'b0, wb_dat_miso[31:24]};
                     endcase
                 end
 
-                op::LH:
+                op_pkg::LH:
                     load_data = address[1] ?
-                        {{16{wb.dat_miso[31]}}, wb.dat_miso[31:16]} :
-                        {{16{wb.dat_miso[15]}}, wb.dat_miso[15:0]};
+                        {{16{wb_dat_miso[31]}}, wb_dat_miso[31:16]} :
+                        {{16{wb_dat_miso[15]}}, wb_dat_miso[15:0]};
 
-                op::LHU:
+                op_pkg::LHU:
                     load_data = address[1] ?
-                        {16'b0, wb.dat_miso[31:16]} :
-                        {16'b0, wb.dat_miso[15:0]};
+                        {16'b0, wb_dat_miso[31:16]} :
+                        {16'b0, wb_dat_miso[15:0]};
 
                 default:
-                    load_data = wb.dat_miso;
+                    load_data = wb_dat_miso;
 
             endcase
 
         end
     end
 
-    //============================================================
-    // Backwards pipeline control
-    //============================================================
-
     always_comb begin
 
         status_backwards_out = pipeline_status::READY;
         jump_address_backwards_out = jump_address_backwards_in;
 
-        // WB stage will likely never stall
         if (status_backwards_in != pipeline_status::READY)
-            status_backwards_out = status_backwards_in; // Essentially a JUMP
+            status_backwards_out = status_backwards_in;
         
-        // Later stages has higher precedence
-        else if (mem_op && !(wb.ack || wb.err))
+        else if (mem_op && !(wb_ack || wb_err))
             status_backwards_out = pipeline_status::STALL;
 
     end
-
-    //============================================================
-    // Pipeline registers
-    //============================================================
 
     always_ff @(posedge clk) begin
 
@@ -241,7 +188,6 @@
             status_forwards_out <= pipeline_status::BUBBLE;
         end
         else if (status_backwards_in == pipeline_status::STALL) begin
-            // Freeze (writeback will likely never stall)
         end
         else if (pipeline_forwards_valid) begin
 
@@ -261,22 +207,20 @@
             else if (misaligned && store_op)
                 status_forwards_out <= pipeline_status::STORE_MISALIGNED;
 
-            else if (mem_op && load_op && wb.err)
+            else if (mem_op && load_op && wb_err)
                 status_forwards_out <= pipeline_status::LOAD_FAULT;
 
-            else if (mem_op && store_op && wb.err)
+            else if (mem_op && store_op && wb_err)
                 status_forwards_out <= pipeline_status::STORE_FAULT;
 
             else begin                                    
-                if (mem_op && !(wb.ack || wb.err))
+                if (mem_op && !(wb_ack || wb_err))
                     status_forwards_out <= pipeline_status::BUBBLE;
-                else if (load_op && wb.ack && !wb.err)
+                else if (load_op && wb_ack && !wb_err)
                     rd_data_reg_out <= load_data;
             end
         end
         else begin
-            // status_forwards_in either {BUBBLE, FETCH_FAULT,
-            // ILLEGAL_INSTRUCTION, ECALL, EBREAK, FETCH_MISALIGNED}
             status_forwards_out <= status_forwards_in;
             program_counter_reg_out <= program_counter_in;
             next_program_counter_reg_out <= next_program_counter_in;
@@ -284,29 +228,26 @@
 
     end
 
-    //============================================================
-    // Forwarding generation
-    //============================================================
+    assign writes_rd = pipeline_forwards_valid && !(
+        (instruction_in.op == op_pkg::SB) || (instruction_in.op == op_pkg::SH) || (instruction_in.op == op_pkg::SW) ||
+        (instruction_in.op == op_pkg::BEQ) || (instruction_in.op == op_pkg::BNE) || (instruction_in.op == op_pkg::BLT) ||
+        (instruction_in.op == op_pkg::BGE) || (instruction_in.op == op_pkg::BLTU) || (instruction_in.op == op_pkg::BGEU) ||
+        (instruction_in.op == op_pkg::MRET)
+    );
 
-    assign writes_rd = pipeline_forwards_valid && !(instruction_in.op inside {
-        op::SB, op::SH, op::SW,
-        op::BEQ, op::BNE, op::BLT, op::BGE, op::BLTU, op::BGEU,
-        op::MRET
-    }); // If doesn't write, not to be forwarded
-
-    assign bypass_ready = pipeline_forwards_valid && !(instruction_in.op inside {
-        op::LB, op::LH, op::LW, op::LBU, op::LHU,
-        op::CSRRW, op::CSRRS, op::CSRRC,
-        op::CSRRWI, op::CSRRSI, op::CSRRCI
-    }) // Not ready for forwarding, STALL decode
-    || (load_op && !misaligned && wb.ack && !wb.err);
+    assign bypass_ready = pipeline_forwards_valid && !(
+        (instruction_in.op == op_pkg::LB) || (instruction_in.op == op_pkg::LH) || (instruction_in.op == op_pkg::LW) ||
+        (instruction_in.op == op_pkg::LBU) || (instruction_in.op == op_pkg::LHU) ||
+        (instruction_in.op == op_pkg::CSRRW) || (instruction_in.op == op_pkg::CSRRS) || (instruction_in.op == op_pkg::CSRRC) ||
+        (instruction_in.op == op_pkg::CSRRWI) || (instruction_in.op == op_pkg::CSRRSI) || (instruction_in.op == op_pkg::CSRRCI)
+    )
+    || (load_op && !misaligned && wb_ack && !wb_err);
     
     assign forwarding_out.data_valid = bypass_ready;
     
-    assign forwarding_out.data = (load_op && wb.ack && !wb.err) 
+    assign forwarding_out.data = (load_op && wb_ack && !wb_err) 
             ? load_data : rd_data_in;
 
     assign forwarding_out.address = writes_rd ? instruction_in.rd_address : 5'b0;
 
-    // ref_memory_stage golden(.*);
 endmodule
