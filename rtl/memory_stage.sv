@@ -1,5 +1,27 @@
 /* File: memory_stage.sv
- * Alternate implementation for iverilog compatibility
+ * Brought up by Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * March 2026  
+ *
+ * Responsibilities:
+ *  - Execute all LOAD instructions
+ *      LB, LH, LW, LBU, LHU
+ *  - Execute all STORE instructions
+ *      SB, SH, SW
+ *  - Control Wishbone bus transactions
+ *  - Detect misaligned accesses
+ *  - Perform sign / zero extension for loads
+ *  - Stall the pipeline while a memory transaction is in progress
+ *  - Provide forwarding data for later pipeline stages
+ *
+ * Important rule:
+ * Memory transactions cannot be aborted once started because
+ * reads or writes may have side effects.
+ */
+
+/* Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 module memory_stage (

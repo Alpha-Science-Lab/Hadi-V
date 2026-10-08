@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: op.sv
+ *
  * Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 package op_pkg;

@@ -1,6 +1,13 @@
 /* 
  * File: Hadi_V.sv
- * Alternate implementation for iverilog compatibility
+ * Brought up by Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * March 2026
+ */
+
+/* Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 module Hadi_V (

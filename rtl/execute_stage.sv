@@ -1,5 +1,33 @@
 /* File: execute_stage.sv
- * Alternate implementation for iverilog compatibility
+ * Brought up by Md. Jubaer Fahad
+ * Extended (branch prediction) by Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * March 2026
+ *
+ * Responsibilities:
+ *  - Perform ALU operations
+ *  - Evaluate branch conditions
+ *  - Compute memory addresses
+ *  - Generate next PC
+ *  - Handle jump control signals
+ *  - Detect misaligned instruction fetch
+ *  - Generate forwarding data
+ *
+ * Pipeline control rules:
+ *
+ * FORWARDS signals (status_forwards):
+ *   - Sequential (registered)
+ *   - Propagate pipeline exceptions
+ *
+ * BACKWARDS signals (status_backwards, jump_address):
+ *   - Pure combinational
+ *   - Must propagate immediately without delay
+ *   - Later pipeline stages have priority
+ */
+
+/* Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 module execute_stage (

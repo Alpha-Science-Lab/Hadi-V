@@ -1,5 +1,12 @@
 /* File: instruction_decoder.sv
+ * Brought up by Md Mosharraf Hossain 
+ * Extended(M-extension) by Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * March 2026
+ *
  * Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
 */
 
 module instruction_decoder (

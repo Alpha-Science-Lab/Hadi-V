@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: wishbone_timer.sv
+ *
  * Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 module wishbone_timer #(

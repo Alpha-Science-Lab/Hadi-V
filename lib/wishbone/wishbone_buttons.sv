@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: wishbone_buttons.sv
+ *
  * Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 module wishbone_buttons #(

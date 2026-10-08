@@ -1,6 +1,12 @@
 /* 
 * File: csr_file.sv
+* Brought up by Md. Jannatul Nayem
+* Organization: Alpha Science Lab
+* April 2026
+* 
 * Alternate implementation for iverilog compatibility
+* Modified by Md. Monjurul Islam
+* Organization: Alpha Science Lab
 */
 
 module csr_file (

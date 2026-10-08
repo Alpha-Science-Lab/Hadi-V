@@ -1,3 +1,9 @@
+/* 
+ * File: icarus_soc.sv
+ * Brought up by Monjurul Islam Bhuiyan
+ * Organization: Alpha Science Lab
+ * September 2026
+ */
 
 module icarus_soc #(
     parameter real CLK_FREQUENCY_MHZ = 9.0
@@ -148,7 +154,8 @@ module icarus_soc #(
 
     wishbone_ram #(
         .ADDRESS(MEMORY_START),
-        .SIZE(MEMORY_SIZE)
+        .SIZE(MEMORY_SIZE),
+        .INIT_FILE("init.mem")
     ) ram (
         .clk(~clk),
         .rst(rst),

@@ -1,6 +1,31 @@
 /* File: decode_stage.sv
- * Alternate implementation for iverilog compatibility
+ * Brought up by Monjurul Islam Bhuiyan
+ * Md. Mosharrof Hossain and Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * March 2026
+ *
+ * Responsibilities of this stage:
+ * - Decode the fetched instruction
+ * - Read operands from the register file
+ * - Apply forwarding if newer data exists in later stages
+ * - Detect hazards that require stalling
+ * - Generate pipeline control signals
+ * - Detect instruction exceptions (ECALL, EBREAK, ILLEGAL_INSTRUCTION)
+ *
+ * Pipeline conventions used:
+ *
+ * FORWARD SIGNALS
+ *  propagate with pipeline registers (sequential)
+ *
+ * BACKWARD SIGNALS
+ *  propagate immediately (combinational)
+ *
  */
+
+/* Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
+*/
 
 module decode_stage (
     input logic clk,

@@ -1,3 +1,9 @@
+/* 
+ * File: icarus_top.sv
+ * Brought up by Monjurul Islam Bhuiyan
+ * Organization: Alpha Science Lab
+ * September 2026
+ */
 
 module icarus_top;
 

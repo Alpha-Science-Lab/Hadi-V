@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: MIT
  * ---------------------------------------------------------------------
  * File: wishbone_interconnect.sv
+ *
  * Alternate implementation for iverilog compatibility (fixed 4 slaves)
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 module wishbone_interconnect #(

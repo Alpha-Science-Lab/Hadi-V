@@ -1,5 +1,23 @@
 /* File: writeback_stage.sv
- * Alternate implementation for iverilog compatibility
+ * Brought up by Md. Jannatul Nayem
+ * Organization: Alpha Science Lab
+ * April 2026
+ *
+ * Writeback Stage of the pipeline
+ *
+ * Responsibilities:
+ *  - Final register writeback
+ *  - Generate forwarding data
+ *  - Execute CSR instructions
+ *  - Detect traps (exceptions / interrupts)
+ *  - Generate pipeline control (jumps)
+ *  - Signal CSR updates
+ *  - Help track performance metrics
+ */
+
+/* Alternate implementation for iverilog compatibility
+ * Modified by Md. Monjurul Islam
+ * Organization: Alpha Science Lab
  */
 
 module writeback_stage (
