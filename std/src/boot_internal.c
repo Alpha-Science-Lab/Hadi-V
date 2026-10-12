@@ -96,7 +96,14 @@ int __bootloader() {
     uint32_t eof = 0;
     while (!eof) {
         // Skip chars until start of record
-        while (__receive_byte() != ':');
+        int record_start;
+        do {
+            record_start = __receive_byte();
+            if (record_start < 0) return -1;
+            if (record_start == '?') {
+                __transmit_string("READY\n");
+            }
+        } while (record_start != ':');
 
         uint8_t sum = 0;
 
@@ -196,6 +203,9 @@ int __bootloader() {
             __transmit_string("ERROR: Wrong checksum\n");
             return -1;
         }
+
+        // Send confirmation character for flow control / ACK
+        __transmit_char('.');
     }
 
     // Jump to payload entry (assumes no return)
