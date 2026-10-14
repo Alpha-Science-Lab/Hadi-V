@@ -5,7 +5,10 @@
  * March 2026
  */
 
-module Hadi_V (
+module Hadi_V #(
+    parameter logic [31:0] RESET_VECTOR = 32'h0,
+    parameter logic [31:0] HART_ID      = 32'h0
+)(
     input logic clk,
     input logic rst,
 
@@ -55,7 +58,9 @@ module Hadi_V (
 
     /* Pipeline stages*/
 
-    fetch_stage s_fetch(
+    fetch_stage #(
+        .RESET_VECTOR(RESET_VECTOR)
+    ) s_fetch (
         .clk(clk),
         .rst(rst),
 
@@ -73,7 +78,7 @@ module Hadi_V (
     );
 
 
-    decode_stage s_decode(
+    decode_stage s_decode (
         .clk(clk),
         .rst(rst),
 
@@ -100,7 +105,7 @@ module Hadi_V (
     );
 
 
-    execute_stage s_execute(
+    execute_stage s_execute (
         .clk(clk),
         .rst(rst),
 
@@ -128,7 +133,7 @@ module Hadi_V (
     );
 
 
-    memory_stage s_memory(
+    memory_stage s_memory (
         .clk(clk),
         .rst(rst),
 
@@ -156,7 +161,9 @@ module Hadi_V (
     );
 
 
-    writeback_stage s_writeback(
+    writeback_stage #(
+        .HART_ID(HART_ID)
+    ) s_writeback (
         .clk(clk),
         .rst(rst),
 

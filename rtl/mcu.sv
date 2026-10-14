@@ -105,7 +105,10 @@ module mcu #(
     };
 
     // Instantiate CPU
-    Hadi_V cpu(
+    Hadi_V #(
+        .RESET_VECTOR(constants::RESET_ADDRESS),
+        .HART_ID(32'h0)
+    ) cpu (
         .clk(clk),
         .rst(rst),
         .memory_fetch_port(fetch_bus.master),

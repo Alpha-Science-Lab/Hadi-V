@@ -5,7 +5,9 @@
 * April 2026
 */
 
-module csr_file (
+module csr_file #(
+    parameter logic [31:0] HART_ID = 32'h0
+) (
 
     input  logic clk,
     input  logic rst,
@@ -233,18 +235,20 @@ module csr_file (
         csr_read_data = 32'd0;
 
         unique case (csr_addr)
-            csr::MSTATUS  : csr_read_data = mstatus;
-            csr::MIE      : csr_read_data = mie;
-            csr::MIP      : csr_read_data = mip;
-            csr::MTVEC    : csr_read_data = mtvec;
-            csr::MEPC     : csr_read_data = mepc;
-            csr::MCAUSE   : csr_read_data = mcause;
-            csr::MSCRATCH : csr_read_data = mscratch;
+            csr::MHARTID   : csr_read_data = HART_ID; // Read the HART ID
 
-            csr::MCYCLE   : csr_read_data = mcycle[31:0];
-            csr::MCYCLEH  : csr_read_data = mcycle[63:32];
-            csr::MINSTRET : csr_read_data = minstret[31:0];
-            csr::MINSTRETH: csr_read_data = minstret[63:32];
+            csr::MSTATUS   : csr_read_data = mstatus;
+            csr::MIE       : csr_read_data = mie;
+            csr::MIP       : csr_read_data = mip;
+            csr::MTVEC     : csr_read_data = mtvec;
+            csr::MEPC      : csr_read_data = mepc;
+            csr::MCAUSE    : csr_read_data = mcause;
+            csr::MSCRATCH  : csr_read_data = mscratch;
+
+            csr::MCYCLE    : csr_read_data = mcycle[31:0];
+            csr::MCYCLEH   : csr_read_data = mcycle[63:32];
+            csr::MINSTRET  : csr_read_data = minstret[31:0];
+            csr::MINSTRETH : csr_read_data = minstret[63:32];
 
             default: ;
         endcase
