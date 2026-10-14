@@ -82,7 +82,10 @@ module icarus_soc #(
     assign external_interrupt = test_interrupt;
 
     // Instantiate CPU
-    Hadi_V cpu(
+    Hadi_V #(
+        .RESET_VECTOR(constants::RESET_ADDRESS),
+        .HART_ID(32'h0)
+    ) cpu (
         .clk(clk),
         .rst(rst),
 

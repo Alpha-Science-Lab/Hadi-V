@@ -20,7 +20,9 @@
  * Organization: Alpha Science Lab
  */
 
-module writeback_stage (
+module writeback_stage #(
+    parameter logic [31:0] HART_ID = 32'h0
+)(
 
     input  logic clk,
     input  logic rst,
@@ -98,7 +100,9 @@ module writeback_stage (
         endcase
     end
 
-    csr_file csr_file_inst (
+    csr_file #(
+        .HART_ID(HART_ID)
+    ) csr_file_inst (
         .clk(clk),
         .rst(rst),
 

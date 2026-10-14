@@ -9,7 +9,9 @@
 * Organization: Alpha Science Lab
 */
 
-module fetch_stage (
+module fetch_stage #(
+    parameter logic [31:0] RESET_VECTOR = 32'h0
+)(
     input logic clk,
     input logic rst,
 
@@ -111,7 +113,7 @@ module fetch_stage (
     // PC Update Logic
     always_ff @(posedge clk) begin
         if (rst) begin
-            pc <= constants::RESET_ADDRESS;
+            pc <= RESET_VECTOR;
         end 
         else begin
             case (status_backwards_in)

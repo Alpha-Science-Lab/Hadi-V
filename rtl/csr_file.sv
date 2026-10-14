@@ -9,7 +9,9 @@
 * Organization: Alpha Science Lab
 */
 
-module csr_file (
+module csr_file #(
+    parameter logic [31:0] HART_ID = 32'h0
+)(
 
     input  logic clk,
     input  logic rst,
@@ -192,18 +194,20 @@ module csr_file (
         csr_read_data = 32'd0;
 
         case (csr_addr)
-            csr_pkg::MSTATUS  : csr_read_data = mstatus;
-            csr_pkg::MIE      : csr_read_data = mie;
-            csr_pkg::MIP      : csr_read_data = mip;
-            csr_pkg::MTVEC    : csr_read_data = mtvec;
-            csr_pkg::MEPC     : csr_read_data = mepc;
-            csr_pkg::MCAUSE   : csr_read_data = mcause;
-            csr_pkg::MSCRATCH : csr_read_data = mscratch;
+            csr_pkg::MHARTID   : csr_read_data = HART_ID; /* Read-only CSR for Hart ID */
 
-            csr_pkg::MCYCLE   : csr_read_data = mcycle[31:0];
-            csr_pkg::MCYCLEH  : csr_read_data = mcycle[63:32];
-            csr_pkg::MINSTRET : csr_read_data = minstret[31:0];
-            csr_pkg::MINSTRETH: csr_read_data = minstret[63:32];
+            csr_pkg::MSTATUS   : csr_read_data = mstatus;
+            csr_pkg::MIE       : csr_read_data = mie;
+            csr_pkg::MIP       : csr_read_data = mip;
+            csr_pkg::MTVEC     : csr_read_data = mtvec;
+            csr_pkg::MEPC      : csr_read_data = mepc;
+            csr_pkg::MCAUSE    : csr_read_data = mcause;
+            csr_pkg::MSCRATCH  : csr_read_data = mscratch;
+
+            csr_pkg::MCYCLE    : csr_read_data = mcycle[31:0];
+            csr_pkg::MCYCLEH   : csr_read_data = mcycle[63:32];
+            csr_pkg::MINSTRET  : csr_read_data = minstret[31:0];
+            csr_pkg::MINSTRETH : csr_read_data = minstret[63:32];
 
             default: ;
         endcase
