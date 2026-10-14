@@ -153,7 +153,8 @@ module mcu #(
 
     wishbone_ram #(
         .ADDRESS(MEMORY_START),
-        .SIZE(MEMORY_SIZE)
+        .SIZE(MEMORY_SIZE),
+        .INIT_FILE("init.mem")
     ) ram (
         .clk(clk_mem),
         .rst(rst),

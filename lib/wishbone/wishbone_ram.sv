@@ -17,7 +17,8 @@
 
 module wishbone_ram #(
     parameter bit [31:0] ADDRESS,
-    parameter bit [31:0] SIZE
+    parameter bit [31:0] SIZE,
+    parameter string     INIT_FILE = ""
 )(
     input logic clk,
     input logic rst,
@@ -34,7 +35,10 @@ module wishbone_ram #(
     (* ram_decomp = "power" *)
     logic [31:0] memory [SIZE];
 
-    initial $readmemh("init.mem", memory);
+    initial begin
+        if (INIT_FILE != "")
+            $readmemh(INIT_FILE, memory);
+    end
 
     // --------------------------------------------------------------------------------------------
     // |                                          Port A                                          |
