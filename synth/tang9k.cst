@@ -7,7 +7,7 @@
 # 27 MHz Clock
 #---------------------------------------------------------
 IO_LOC  "clk_27mhz" 52;
-IO_PORT "clk_27mhz" IO_TYPE=LVCMOS18;
+IO_PORT "clk_27mhz" IO_TYPE=LVCMOS33;
 
 #---------------------------------------------------------
 # Buttons (Active-Low)
